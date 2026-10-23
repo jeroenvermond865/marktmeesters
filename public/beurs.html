@@ -108,10 +108,17 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 1.3fr .7fr;
+      grid-template-columns: minmax(0, 1fr) 380px;
       gap: 20px;
       align-items: start;
     }
+
+    /* Links: grafiek, tussenstand + speeltijd, nieuws. Rechts: beursleiding */
+    .hoofd { display: grid; gap: 20px; min-width: 0; }
+    .duo { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .hoofd > .panel, .duo > .panel, .zijkolom > .panel { margin-top: 0; }
+    /* Voorkomt dat de brede grafiek de kolommen uit elkaar duwt */
+    .hoofd > *, .duo > *, .grafiek-vak { min-width: 0; }
 
     .panel {
       padding: 22px;
@@ -123,9 +130,14 @@
     .panel + .panel { margin-top: 20px; }
     .panel h2 { margin: 0 0 12px; }
 
-    /* Grafiek */
-    .grafiek { margin-bottom: 20px; }
-    .grafiek svg { width: 100%; height: 260px; display: block; }
+    /* Grafiek: vaste y-as links, de rest scrollt zijwaarts */
+    .grafiek-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .grafiek-vak { display: flex; margin-top: 8px; }
+    .grafiek-vak .as { flex: 0 0 52px; width: 52px; display: block; }
+    .grafiek-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-color: #29445f transparent; }
+    .grafiek-scroll svg { display: block; }
+    .grafiek-scroll::-webkit-scrollbar { height: 8px; }
+    .grafiek-scroll::-webkit-scrollbar-thumb { background: #29445f; border-radius: 4px; }
     .legenda { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 14px; }
     .legenda span { display: inline-flex; align-items: center; gap: 6px; }
     .legenda i { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
@@ -252,9 +264,16 @@
     .einde-knoppen { display: flex; gap: 12px; justify-content: center; margin-top: 26px; }
     .einde-knoppen button { width: auto; padding: 14px 24px; }
 
+    @media (max-width: 1150px) {
+      .duo { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 900px) {
       .prices { grid-template-columns: repeat(2, 1fr); }
-      .layout { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -282,26 +301,23 @@
 
     <section class="prices" id="prices"></section>
 
-    <div class="panel grafiek">
-      <div class="tag">KOERSVERLOOP</div>
-      <svg id="grafiek" viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Koersgrafiek"></svg>
-      <div class="legenda" id="legenda"></div>
-    </div>
-
     <section class="layout">
-      <div>
-        <div class="panel">
-          <div class="tag">NIEUWS</div>
-          <div class="news-feed" id="newsFeed"></div>
-
-          <div class="transactions">
-            <div class="tag">LAATSTE TRANSACTIES</div>
-            <div id="transactions">Nog geen transacties.</div>
+      <div class="hoofd">
+        <div class="panel grafiek">
+          <div class="grafiek-kop">
+            <div class="tag">KOERSVERLOOP</div>
+            <span class="status" id="grafiekInfo"></span>
           </div>
+          <div class="grafiek-vak">
+            <svg class="as" id="grafiekAs" height="260" aria-hidden="true"></svg>
+            <div class="grafiek-scroll" id="grafiekScroll">
+              <svg id="grafiek" height="260" role="img" aria-label="Koersgrafiek"></svg>
+            </div>
+          </div>
+          <div class="legenda" id="legenda"></div>
         </div>
-      </div>
 
-      <aside>
+        <div class="duo">
         <div class="panel">
           <div class="tag">TUSSENSTAND</div>
           <table>
@@ -313,13 +329,25 @@
           <p class="status" style="margin-top:10px">+/− = winst of verlies op aandelen. Totaal = kasgeld + aandelen − lening.</p>
           <button type="button" class="stil" id="toonEinde" style="margin-top:12px">🏆 Toon eindscherm</button>
         </div>
-
         <div class="panel">
           <h2>Speeltijd</h2>
           <p class="status" id="speelStatus"></p>
           <div class="blok" id="speelKnoppen"></div>
         </div>
+        </div>
 
+        <div class="panel">
+          <div class="tag">NIEUWS</div>
+          <div class="news-feed" id="newsFeed"></div>
+
+          <div class="transactions">
+            <div class="tag">LAATSTE TRANSACTIES</div>
+            <div id="transactions">Nog geen transacties.</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="zijkolom">
         <div class="panel">
           <h2>Beursleiding</h2>
 
@@ -489,50 +517,118 @@
 
     // --- Koersgrafiek ---
 
-    function renderGrafiek() {
-      const svg = $("#grafiek");
-      const punten = [...(state.history || []), { t: Date.now() + klokVerschil, p: state.prices }];
-      const B = 1000, H = 260, links = 48, rechts = 12, boven = 12, onder = 26;
+    // Vloeiende lijn door de punten (monotone kromme: schiet niet over de echte waarden heen)
+    function vloeiendPad(punten) {
+      const n = punten.length;
+      if (n === 0) return "";
+      if (n === 1) return `M${punten[0][0]},${punten[0][1]}`;
+      const dx = [], helling = [], m = [];
+      for (let i = 0; i < n - 1; i++) {
+        dx[i] = punten[i + 1][0] - punten[i][0];
+        helling[i] = (punten[i + 1][1] - punten[i][1]) / dx[i];
+      }
+      m[0] = helling[0];
+      m[n - 1] = helling[n - 2];
+      for (let i = 1; i < n - 1; i++) {
+        m[i] = helling[i - 1] * helling[i] <= 0 ? 0 : (helling[i - 1] + helling[i]) / 2;
+      }
+      for (let i = 0; i < n - 1; i++) {
+        if (helling[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+        const a = m[i] / helling[i], b = m[i + 1] / helling[i];
+        const h = a * a + b * b;
+        if (h > 9) { const t = 3 / Math.sqrt(h); m[i] = t * a * helling[i]; m[i + 1] = t * b * helling[i]; }
+      }
+      let d = `M${punten[0][0]},${punten[0][1]}`;
+      for (let i = 0; i < n - 1; i++) {
+        const [x0, y0] = punten[i], [x1, y1] = punten[i + 1];
+        const h = dx[i] / 3;
+        d += `C${x0 + h},${y0 + m[i] * h} ${x1 - h},${y1 - m[i + 1] * h} ${x1},${y1}`;
+      }
+      return d;
+    }
 
-      const waarden = punten.flatMap((pt) => aandelen.map((a) => pt.p[a]).filter((w) => w !== undefined));
+    const ZICHTBAAR = 15; // zoveel rondes passen in beeld, de rest scrollt opzij
+
+    function renderGrafiek() {
+      const scroll = $("#grafiekScroll");
+      const svg = $("#grafiek");
+      const as = $("#grafiekAs");
+      const H = 260, boven = 14, onder = 34, rand = 18;
+
+      // Elke koerswijziging is een ronde; het laatste punt is de stand van nu
+      const rondes = (state.history || []).filter((pt) => pt && pt.p);
+      if (!rondes.length || aandelen.some((a) => rondes[rondes.length - 1].p[a] !== state.prices[a])) {
+        rondes.push({ t: Date.now() + klokVerschil, p: { ...state.prices } });
+      }
+      const n = rondes.length;
+
+      const waarden = rondes.flatMap((pt) => aandelen.map((a) => pt.p[a]).filter((w) => w !== undefined));
       let min = Math.min(...waarden), max = Math.max(...waarden);
       if (min === max) { min -= 10; max += 10; }
-      const marge = (max - min) * 0.08;
+      const marge = (max - min) * 0.1;
       min = Math.max(0, min - marge); max += marge;
-
-      const t0 = punten[0].t, t1 = Math.max(punten[punten.length - 1].t, t0 + 60000);
-      const x = (t) => links + ((t - t0) / (t1 - t0)) * (B - links - rechts);
       const y = (w) => boven + (1 - (w - min) / (max - min)) * (H - boven - onder);
 
-      let inhoud = "";
-      // hulplijnen
+      // Breedte: 15 rondes vullen het zichtbare deel, daarna wordt de grafiek breder
+      const zichtbaar = Math.max(200, scroll.clientWidth);
+      const stap = (zichtbaar - 2 * rand) / (ZICHTBAAR - 1);
+      const breedte = Math.max(zichtbaar, 2 * rand + stap * (n - 1));
+      const x = (i) => rand + i * stap;
+
+      // Stond je helemaal rechts? Dan na het tekenen weer naar de nieuwste ronde scrollen
+      const volgNieuwste = scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 30;
+
+      // Y-as (blijft staan tijdens scrollen)
+      let asInhoud = "";
       for (let i = 0; i <= 4; i++) {
         const w = min + ((max - min) * i) / 4;
-        inhoud += `<line x1="${links}" x2="${B - rechts}" y1="${y(w)}" y2="${y(w)}" stroke="#ffffff1a" vector-effect="non-scaling-stroke"/>`;
-        inhoud += `<text x="${links - 6}" y="${y(w) + 4}" fill="#a9b8c8" font-size="12" text-anchor="end">€${Math.round(w)}</text>`;
+        asInhoud += `<text x="46" y="${y(w) + 4}" fill="#a9b8c8" font-size="12" text-anchor="end">€${Math.round(w)}</text>`;
       }
-      // tijdlabels
+      as.setAttribute("viewBox", `0 0 52 ${H}`);
+      as.innerHTML = asInhoud;
+
+      let inhoud = "";
       for (let i = 0; i <= 4; i++) {
-        const t = t0 + ((t1 - t0) * i) / 4;
-        inhoud += `<text x="${x(t)}" y="${H - 6}" fill="#a9b8c8" font-size="12" text-anchor="${i === 0 ? "start" : i === 4 ? "end" : "middle"}">${new Date(t).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</text>`;
+        const w = min + ((max - min) * i) / 4;
+        inhoud += `<line x1="0" x2="${breedte}" y1="${y(w)}" y2="${y(w)}" stroke="#ffffff14"/>`;
       }
-      // een trapjeslijn per aandeel (koers blijft gelijk tot de volgende wijziging)
-      aandelen.forEach((a, i) => {
-        let d = "", vorige = null;
-        punten.forEach((pt) => {
-          const w = pt.p[a];
-          if (w === undefined) return;
-          if (vorige === null) d += `M${x(pt.t)},${y(w)}`;
-          else d += `H${x(pt.t)}V${y(w)}`;
-          vorige = w;
-        });
-        inhoud += `<path d="${d}" fill="none" stroke="${kleuren[i % kleuren.length]}" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+      // Rondenummer en tijd onder elk punt
+      rondes.forEach((pt, i) => {
+        inhoud += `<line x1="${x(i)}" x2="${x(i)}" y1="${boven}" y2="${H - onder}" stroke="#ffffff08"/>`;
+        inhoud += `<text x="${x(i)}" y="${H - 18}" fill="#a9b8c8" font-size="11" text-anchor="middle">${i + 1}</text>`;
+        inhoud += `<text x="${x(i)}" y="${H - 5}" fill="#6f8296" font-size="10" text-anchor="middle">${new Date(pt.t).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</text>`;
       });
+      // Een vloeiende lijn per aandeel, met stippen op de rondes
+      aandelen.forEach((a, k) => {
+        const kleur = kleuren[k % kleuren.length];
+        const pts = [];
+        rondes.forEach((pt, i) => { if (pt.p[a] !== undefined) pts.push([x(i), y(pt.p[a])]); });
+        inhoud += `<path d="${vloeiendPad(pts)}" fill="none" stroke="${kleur}" stroke-width="3" stroke-linecap="round"/>`;
+        pts.forEach(([px, py], i) => {
+          const laatste = i === pts.length - 1;
+          inhoud += `<circle cx="${px}" cy="${py}" r="${laatste ? 5 : 3}" fill="${laatste ? kleur : "#08172d"}" stroke="${kleur}" stroke-width="2"/>`;
+        });
+      });
+
+      svg.setAttribute("width", breedte);
+      svg.setAttribute("viewBox", `0 0 ${breedte} ${H}`);
       svg.innerHTML = inhoud;
+      if (volgNieuwste) scroll.scrollLeft = scroll.scrollWidth;
+
+      $("#grafiekInfo").textContent = n > ZICHTBAAR
+        ? `${n} rondes · scroll opzij voor eerdere rondes`
+        : `${n} ${n === 1 ? "ronde" : "rondes"}`;
 
       $("#legenda").innerHTML = aandelen.map((a, i) =>
         `<span><i style="background:${kleuren[i % kleuren.length]}"></i>${esc(a)} <b>${euro(state.prices[a])}</b></span>`).join("");
     }
+
+    // Bij een ander schermformaat de grafiek opnieuw tekenen
+    let grafiekTimer = null;
+    addEventListener("resize", () => {
+      clearTimeout(grafiekTimer);
+      grafiekTimer = setTimeout(() => { if (state) renderGrafiek(); }, 150);
+    });
 
     // --- Nieuws en transacties ---
 
