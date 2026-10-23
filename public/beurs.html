@@ -42,6 +42,21 @@
 
     .tag { color: var(--cyan); font-weight: 800; letter-spacing: .14em; }
 
+    /* Kleine terugknop: valt op de beamer niet op, maar is wel te vinden */
+    .terug {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 12px;
+      border: 1px solid var(--rand);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      opacity: .7;
+    }
+    .terug:hover { opacity: 1; color: var(--white); border-color: var(--cyan); }
+
     .klokken { display: flex; gap: 12px; align-items: stretch; }
 
     .clock, .speelklok {
@@ -303,6 +318,7 @@
   <div class="wrap">
     <header>
       <div>
+        <a class="terug" href="/">← Alle pagina's</a>
         <div class="tag">SCOUTING HANDELSSPEL</div>
         <h1>AANDELENBEURS NIEUWE VAART</h1>
       </div>
