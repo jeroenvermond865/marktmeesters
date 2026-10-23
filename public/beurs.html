@@ -55,7 +55,7 @@
 
     .prices {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: 14px;
       margin: 26px 0;
     }
@@ -71,6 +71,7 @@
 
     .price.flits { transform: scale(1.04); }
     .price h2 { margin: 0 0 10px; font-size: 17px; }
+    .price .soort { display: block; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .1em; }
     .value { font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
     .change { margin-top: 8px; font-weight: 800; }
     .up { color: var(--green); }
@@ -253,15 +254,8 @@
   </div>
 
   <script>
-    const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
-
-    const namen = {
-      Eiland: "Aandeel in het eiland",
-      Sleper: "Aandeel in de sleper",
-      Gebouw: "Aandeel in het gebouw",
-      Loods: "Aandeel in de loods",
-      Lelievletten: "Aandeel in de lelievletten"
-    };
+    // De posten (aandelen) komen nu uit de spelinstellingen op de server
+    let aandelen = [];
 
     let laatsteKoersen = null;
 
@@ -290,8 +284,8 @@
 
         return `
           <article class="price${flits}">
-            <h2>${namen[key]}</h2>
-            <div class="value">€ ${waarde}</div>
+            <h2><span class="soort">AANDEEL</span>${esc(key)}</h2>
+            <div class="value">${euro(waarde)}</div>
             <div class="change ${klasse}">${teken}${verschil} sinds vorig nieuws</div>
           </article>`;
       }).join("");
@@ -305,7 +299,7 @@
     function renderNieuws(state) {
       document.querySelector("#newsFeed").innerHTML = state.news.map((item) => {
         const effect = item.changes.length
-          ? item.changes.map((c) => `${namen[c.stock]} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ")
+          ? item.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ")
           : "Geen prijswijziging";
 
         return `
@@ -327,29 +321,40 @@
 
       doel.innerHTML = state.transactions.slice(0, 8).map((t) => `
         <div class="transaction">
-          <strong>${t.group}</strong> ${t.action === "buy" ? "kocht" : "verkocht"}
-          <strong>${t.qty}× ${t.stock}</strong>
+          <strong>${esc(t.group)}</strong> ${t.action === "buy" ? "kocht" : "verkocht"}
+          <strong>${t.qty}× ${esc(t.stock)}</strong>
           à ${euro(t.price)} (${euro(t.total ?? t.price * t.qty)})
-          ${t.station ? "bij post " + t.station : ""} · ${tijd(t.at)}
+          ${t.station ? "bij post " + esc(t.station) : ""} · ${tijd(t.at)}
         </div>`).join("");
     }
 
     function renderRanking(state) {
       const lijst = state.groups.map((g) => {
-        const aandelenWaarde = aandelen.reduce((som, a) => som + g.shares[a] * state.prices[a], 0);
+        const aandelenWaarde = aandelen.reduce((som, a) => som + (g.shares[a] || 0) * state.prices[a], 0);
         return { ...g, totaal: g.cash + aandelenWaarde };
       }).sort((a, b) => b.totaal - a.totaal);
 
       document.querySelector("#ranking").innerHTML = lijst.map((g, i) => `
         <tr class="${i === 0 ? "eerste" : ""}">
           <td>${i + 1}</td>
-          <td>${g.name}</td>
+          <td>${esc(g.name)}</td>
           <td class="num">${euro(g.cash)}</td>
           <td class="num">${euro(g.totaal)}</td>
         </tr>`).join("");
     }
 
+    // Keuzelijst voor eigen nieuws bijwerken als de posten veranderen
+    function renderPostKeuze() {
+      const huidig = nAandeel.value;
+      nAandeel.innerHTML = "";
+      aandelen.forEach((a) => nAandeel.add(new Option(a, a)));
+      if (aandelen.includes(huidig)) nAandeel.value = huidig;
+    }
+
     function render(state) {
+      const postenVeranderd = state.posts.join("|") !== aandelen.join("|");
+      aandelen = state.posts;
+      if (postenVeranderd) renderPostKeuze();
       renderKoersen(state);
       renderNieuws(state);
       renderTransacties(state);
@@ -399,7 +404,6 @@
     });
 
     const nAandeel = document.querySelector("#nAandeel");
-    aandelen.forEach((a) => nAandeel.add(new Option(namen[a], a)));
 
     document.querySelector("#eigenNieuws").addEventListener("submit", async (event) => {
       event.preventDefault();

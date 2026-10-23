@@ -19,16 +19,21 @@
     }
 
     .kaart h2 { margin: 0; }
+    #groepen, #posten { display: grid; gap: 10px; }
 
-    .groeprij {
+    .rij {
       display: grid;
-      grid-template-columns: 1fr auto 48px;
+      grid-template-columns: 1fr 150px 48px;
       gap: 10px;
       align-items: center;
     }
 
-    .groeprij .info { color: var(--muted); font-size: 13px; white-space: nowrap; }
-    .groeprij .info.nieuw { color: var(--cyan); }
+    .rij.post { grid-template-columns: 1fr 110px 130px 48px; }
+
+    .info { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .info.nieuw { color: var(--cyan); }
+
+    .kop { color: var(--muted); font-size: 13px; font-weight: 600; }
 
     .verwijder {
       background: #5a2030;
@@ -43,13 +48,7 @@
       border: 1px dashed var(--cyan);
     }
 
-    .koersen {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-    }
-
-    .koersen label { font-weight: 600; }
+    .twee { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .knoppen { display: grid; gap: 10px; margin-top: 18px; }
     .knoppen .tweede { background: var(--orange); }
@@ -68,6 +67,14 @@
     .klein-knoppen input[type="file"] { display: none; }
 
     .opmerking { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    @media (max-width: 560px) {
+      .rij.post { grid-template-columns: 1fr 90px 48px; }
+      .rij { grid-template-columns: 1fr 48px; }
+      .rij > .info { grid-column: 1 / -1; grid-row: 2; }
+      .rij.post .info { grid-column: 1 / -1; grid-row: 2; }
+      .kop.info-kop { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -83,7 +90,39 @@
       <h2>Groepen</h2>
       <p class="opmerking">Namen, nieuwe groepen en verwijderde groepen gaan direct in na opslaan. Een nieuwe groep krijgt meteen het startgeld.</p>
       <div id="groepen"></div>
-      <button type="button" class="toevoegen" id="toevoegen">+ Groep toevoegen</button>
+      <button type="button" class="toevoegen" id="groepToevoegen">+ Groep toevoegen</button>
+    </section>
+
+    <section class="kaart">
+      <h2>Posten (aandelen)</h2>
+      <p class="opmerking">
+        Elke post is ook een aandeel. Een hernoemde post houdt zijn koers en de aandelen van de groepen.
+        Een nieuwe post start direct op zijn beginwaarde. Verwijder je een post, dan krijgen de groepen hun aandelen terugbetaald tegen de laatste koers.
+      </p>
+      <div class="rij post">
+        <span class="kop">Naam</span>
+        <span class="kop">Beginwaarde €</span>
+        <span class="kop info-kop">Nu</span>
+        <span></span>
+      </div>
+      <div id="posten"></div>
+      <button type="button" class="toevoegen" id="postToevoegen">+ Post toevoegen</button>
+      <p class="opmerking">De beginwaarde van een bestaande post geldt vanaf de volgende keer dat het spel opnieuw begint.</p>
+    </section>
+
+    <section class="kaart">
+      <h2>Koersgrenzen</h2>
+      <div class="twee">
+        <label>
+          Minimale koers (€)
+          <input type="number" id="minKoers" min="1" step="1" inputmode="numeric">
+        </label>
+        <label>
+          Maximale koers (€)
+          <input type="number" id="maxKoers" min="2" step="1" inputmode="numeric">
+        </label>
+      </div>
+      <p class="opmerking">Geen enkel aandeel kan lager of hoger komen dan deze grenzen. Gaat direct in: koersen die er nu buiten liggen, worden bijgesteld.</p>
     </section>
 
     <section class="kaart">
@@ -93,12 +132,6 @@
         <input type="number" id="startkapitaal" min="0" max="1000000" step="1" inputmode="numeric">
       </label>
       <p class="opmerking">Geldt voor nieuwe groepen en vanaf de volgende keer dat het spel opnieuw begint.</p>
-    </section>
-
-    <section class="kaart">
-      <h2>Beginkoersen</h2>
-      <div class="koersen" id="koersen"></div>
-      <p class="opmerking" id="koersUitleg">Geldt vanaf de volgende keer dat het spel opnieuw begint.</p>
     </section>
 
     <div class="knoppen">
@@ -124,12 +157,12 @@
   </main>
 
   <script>
-    const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
     const $ = (sel) => document.querySelector(sel);
 
-    let rijen = [];          // { id (of null voor nieuw), name, cash, aandelen }
-    let limieten = { minKoers: 10, maxKoers: 250, maxGroepen: 20 };
-    let opgeslagenStart = 0; // startgeld zoals nu opgeslagen
+    let groepRijen = [];   // { id (null = nieuw), name, cash, aandelen }
+    let postRijen = [];    // { id (oude naam, null = nieuw), naam, beginKoers, koers, inBezit }
+    let opgeslagen = null; // laatst geladen gegevens van de server
+    let limieten = { maxGroepen: 20, maxPosten: 12 };
 
     function euro(bedrag) {
       return "€ " + Number(bedrag).toLocaleString("nl-NL");
@@ -140,15 +173,29 @@
       $("#melding").className = "melding " + (goed ? "goed" : "fout");
     }
 
-    // --- Groepenlijst ---
+    function maakKnopWeg(lijst, i, teken) {
+      const weg = document.createElement("button");
+      weg.type = "button";
+      weg.className = "verwijder";
+      weg.textContent = "×";
+      weg.title = "Verwijderen";
+      weg.disabled = lijst.length <= 1;
+      weg.addEventListener("click", () => {
+        lijst.splice(i, 1);
+        teken();
+      });
+      return weg;
+    }
+
+    // --- Groepen ---
 
     function tekenGroepen() {
       const doel = $("#groepen");
       doel.innerHTML = "";
 
-      rijen.forEach((rij, i) => {
+      groepRijen.forEach((rij, i) => {
         const div = document.createElement("div");
-        div.className = "groeprij";
+        div.className = "rij";
 
         const invoer = document.createElement("input");
         invoer.value = rij.name;
@@ -165,65 +212,87 @@
           info.textContent = euro(rij.cash) + " · " + rij.aandelen + " aand.";
         }
 
-        const weg = document.createElement("button");
-        weg.type = "button";
-        weg.className = "verwijder";
-        weg.textContent = "×";
-        weg.title = "Groep verwijderen";
-        weg.disabled = rijen.length <= 1;
-        weg.addEventListener("click", () => {
-          rijen.splice(i, 1);
-          tekenGroepen();
-        });
-
-        div.append(invoer, info, weg);
+        div.append(invoer, info, maakKnopWeg(groepRijen, i, tekenGroepen));
         doel.append(div);
       });
 
-      $("#toevoegen").disabled = rijen.length >= limieten.maxGroepen;
+      $("#groepToevoegen").disabled = groepRijen.length >= limieten.maxGroepen;
     }
 
-    $("#toevoegen").addEventListener("click", () => {
-      rijen.push({ id: null, name: "Groep " + (rijen.length + 1), cash: 0, aandelen: 0 });
+    $("#groepToevoegen").addEventListener("click", () => {
+      groepRijen.push({ id: null, name: "Groep " + (groepRijen.length + 1), cash: 0, aandelen: 0 });
       tekenGroepen();
-      const invoervelden = document.querySelectorAll("#groepen input");
-      const laatste = invoervelden[invoervelden.length - 1];
-      laatste.focus();
-      laatste.select();
+      focusLaatste("#groepen");
     });
 
-    // --- Koersen ---
+    // --- Posten ---
 
-    function tekenKoersen(koersen) {
-      $("#koersen").innerHTML = "";
-      aandelen.forEach((a) => {
-        const label = document.createElement("label");
-        label.textContent = a;
-        const invoer = document.createElement("input");
-        invoer.type = "number";
-        invoer.min = limieten.minKoers;
-        invoer.max = limieten.maxKoers;
-        invoer.step = 1;
-        invoer.value = koersen[a];
-        invoer.dataset.aandeel = a;
-        label.append(invoer);
-        $("#koersen").append(label);
+    function tekenPosten() {
+      const doel = $("#posten");
+      doel.innerHTML = "";
+
+      postRijen.forEach((rij, i) => {
+        const div = document.createElement("div");
+        div.className = "rij post";
+
+        const naam = document.createElement("input");
+        naam.value = rij.naam;
+        naam.maxLength = 20;
+        naam.placeholder = "Naam van de post";
+        naam.addEventListener("input", () => { rij.naam = naam.value; });
+
+        const begin = document.createElement("input");
+        begin.type = "number";
+        begin.step = 1;
+        begin.value = rij.beginKoers;
+        begin.inputMode = "numeric";
+        begin.addEventListener("input", () => { rij.beginKoers = begin.value; });
+
+        const info = document.createElement("span");
+        if (rij.id === null) {
+          info.className = "info nieuw";
+          info.textContent = "nieuw";
+        } else {
+          info.className = "info";
+          info.textContent = euro(rij.koers) + " · " + rij.inBezit + " in bezit";
+        }
+
+        div.append(naam, begin, info, maakKnopWeg(postRijen, i, tekenPosten));
+        doel.append(div);
       });
-      $("#koersUitleg").textContent =
-        `Tussen € ${limieten.minKoers} en € ${limieten.maxKoers}. Geldt vanaf de volgende keer dat het spel opnieuw begint.`;
+
+      $("#postToevoegen").disabled = postRijen.length >= limieten.maxPosten;
+    }
+
+    $("#postToevoegen").addEventListener("click", () => {
+      const min = Number($("#minKoers").value) || 10;
+      const max = Number($("#maxKoers").value) || 250;
+      postRijen.push({
+        id: null,
+        naam: "Nieuwe post " + (postRijen.length + 1),
+        beginKoers: Math.round((min + max) / 2.5),
+        koers: 0,
+        inBezit: 0
+      });
+      tekenPosten();
+      focusLaatste("#posten");
+    });
+
+    function focusLaatste(container) {
+      const velden = document.querySelectorAll(container + " input:not([type=number])");
+      const laatste = velden[velden.length - 1];
+      if (laatste) { laatste.focus(); laatste.select(); }
     }
 
     // --- Laden en opslaan ---
 
     function verzamel() {
-      const beginKoersen = {};
-      document.querySelectorAll("#koersen input").forEach((invoer) => {
-        beginKoersen[invoer.dataset.aandeel] = Number(invoer.value);
-      });
       return {
-        groepen: rijen.map((r) => ({ id: r.id, name: r.name.trim() })),
+        groepen: groepRijen.map((r) => ({ id: r.id, name: r.name.trim() })),
+        posten: postRijen.map((r) => ({ id: r.id, naam: r.naam.trim(), beginKoers: Number(r.beginKoers) })),
         startkapitaal: Number($("#startkapitaal").value),
-        beginKoersen
+        minKoers: Number($("#minKoers").value),
+        maxKoers: Number($("#maxKoers").value)
       };
     }
 
@@ -234,12 +303,45 @@
         return;
       }
       const data = await res.json();
+      opgeslagen = data;
       limieten = data.limieten;
-      opgeslagenStart = data.instellingen.startkapitaal;
-      rijen = data.groepen.map((g) => ({ ...g }));
+
+      groepRijen = data.groepen.map((g) => ({ ...g }));
+
+      const beginwaarden = Object.fromEntries(data.instellingen.posten.map((p) => [p.naam, p.beginKoers]));
+      postRijen = data.posten.map((p) => ({
+        id: p.naam,
+        naam: p.naam,
+        beginKoers: beginwaarden[p.naam] ?? p.koers,
+        koers: p.koers,
+        inBezit: p.inBezit
+      }));
+
       $("#startkapitaal").value = data.instellingen.startkapitaal;
+      $("#minKoers").value = data.instellingen.minKoers;
+      $("#maxKoers").value = data.instellingen.maxKoers;
+
       tekenGroepen();
-      tekenKoersen(data.instellingen.beginKoersen);
+      tekenPosten();
+    }
+
+    function waarschuwingen(data) {
+      const teksten = [];
+      if (!opgeslagen) return teksten;
+
+      const blijvendeGroepen = new Set(data.groepen.map((g) => g.id));
+      const wegGroepen = opgeslagen.groepen.filter((g) => !blijvendeGroepen.has(g.id));
+      const metBezit = wegGroepen.filter((g) => g.aandelen > 0 || g.cash !== opgeslagen.instellingen.startkapitaal);
+      if (metBezit.length) {
+        teksten.push(`Je verwijdert ${metBezit.map((g) => g.name).join(", ")}. Hun kasgeld en aandelen verdwijnen.`);
+      }
+
+      const blijvendePosten = new Set(data.posten.map((p) => p.id));
+      const wegPosten = opgeslagen.posten.filter((p) => !blijvendePosten.has(p.naam) && p.inBezit > 0);
+      if (wegPosten.length) {
+        teksten.push(`Je sluit ${wegPosten.map((p) => "post " + p.naam).join(", ")}. Groepen krijgen hun aandelen terugbetaald tegen de huidige koers.`);
+      }
+      return teksten;
     }
 
     async function opslaan(opnieuwStarten) {
@@ -248,14 +350,8 @@
       if (opnieuwStarten) {
         if (!confirm("Het spel begint opnieuw: alle kasgeld, aandelen, koersen en transacties gaan terug naar het begin. Doorgaan?")) return;
       } else {
-        // Waarschuwen als er groepen met geld of aandelen verdwijnen
-        const blijft = new Set(data.groepen.map((g) => g.id));
-        const weg = (window.huidigeGroepen || []).filter((g) => !blijft.has(g.id));
-        const metBezit = weg.filter((g) => g.aandelen > 0 || g.cash !== opgeslagenStart);
-        if (metBezit.length) {
-          const namen = metBezit.map((g) => g.name).join(", ");
-          if (!confirm(`Je verwijdert ${namen}. Hun kasgeld en aandelen verdwijnen. Doorgaan?`)) return;
-        }
+        const teksten = waarschuwingen(data);
+        if (teksten.length && !confirm(teksten.join("\n\n") + "\n\nDoorgaan?")) return;
       }
 
       data.opnieuwStarten = !!opnieuwStarten;
@@ -277,7 +373,6 @@
         }
         melden(opnieuwStarten ? "✓ Opgeslagen, het spel is opnieuw begonnen." : "✓ Opgeslagen.", true);
         await laad();
-        window.huidigeGroepen = rijen.map((r) => ({ ...r }));
       } catch {
         melden("De server is niet bereikbaar.", false);
       }
@@ -292,8 +387,10 @@
       const data = verzamel();
       const bestand = {
         groepen: data.groepen.map((g) => g.name),
+        posten: data.posten.map((p) => ({ naam: p.naam, beginKoers: p.beginKoers })),
         startkapitaal: data.startkapitaal,
-        beginKoersen: data.beginKoersen
+        minKoers: data.minKoers,
+        maxKoers: data.maxKoers
       };
       const blob = new Blob([JSON.stringify(bestand, null, 2)], { type: "application/json" });
       const link = document.createElement("a");
@@ -311,15 +408,35 @@
         if (!Array.isArray(data.groepen)) throw new Error();
 
         // Groepen op volgorde koppelen aan de bestaande groepen, zodat hun stand blijft
-        rijen = data.groepen.map((naam, i) => {
-          const bestaand = (window.huidigeGroepen || [])[i];
+        const huidigeGroepen = opgeslagen ? opgeslagen.groepen : [];
+        groepRijen = data.groepen.map((naam, i) => {
+          const bestaand = huidigeGroepen[i];
           return bestaand
             ? { ...bestaand, name: String(naam) }
             : { id: null, name: String(naam), cash: 0, aandelen: 0 };
         });
+
+        // Posten: op naam koppelen aan bestaande posten, anders nieuw
+        let posten = data.posten;
+        if (!posten && data.beginKoersen) {
+          posten = Object.entries(data.beginKoersen).map(([naam, beginKoers]) => ({ naam, beginKoers }));
+        }
+        if (Array.isArray(posten)) {
+          const huidigePosten = opgeslagen ? opgeslagen.posten : [];
+          postRijen = posten.map((p) => {
+            const bestaand = huidigePosten.find((h) => h.naam.toLowerCase() === String(p.naam).toLowerCase());
+            return bestaand
+              ? { id: bestaand.naam, naam: String(p.naam), beginKoers: p.beginKoers, koers: bestaand.koers, inBezit: bestaand.inBezit }
+              : { id: null, naam: String(p.naam), beginKoers: p.beginKoers, koers: 0, inBezit: 0 };
+          });
+        }
+
         if (data.startkapitaal !== undefined) $("#startkapitaal").value = data.startkapitaal;
-        if (data.beginKoersen) tekenKoersen({ ...verzamel().beginKoersen, ...data.beginKoersen });
+        if (data.minKoers !== undefined) $("#minKoers").value = data.minKoers;
+        if (data.maxKoers !== undefined) $("#maxKoers").value = data.maxKoers;
+
         tekenGroepen();
+        tekenPosten();
         melden("Bestand ingeladen. Controleer alles en klik op Opslaan.", true);
       } catch {
         melden("Dit bestand kan ik niet lezen. Kies een instellingen.json die je eerder hebt gedownload.", false);
@@ -327,9 +444,7 @@
       event.target.value = "";
     });
 
-    laad().then(() => {
-      window.huidigeGroepen = rijen.map((r) => ({ ...r }));
-    }).catch(() => melden("De server is niet bereikbaar.", false));
+    laad().catch(() => melden("De server is niet bereikbaar.", false));
   </script>
 </body>
 </html>

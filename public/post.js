@@ -1,10 +1,10 @@
 (() => {
-  const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
+  // De posten komen uit de spelinstellingen op de server
+  let aandelen = [];
+  let post = null;
 
   const params = new URLSearchParams(location.search);
-  const gevraagd = params.get("post") || "Eiland";
-  // Hoofdletterongevoelig, zodat ?post=sleper ook werkt
-  const post = aandelen.find((a) => a.toLowerCase() === gevraagd.toLowerCase()) || "Eiland";
+  const gevraagd = params.get("post") || "";
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -20,12 +20,33 @@
   let gekozenGroep = 1;
   let gekozenActie = "buy";
 
-  document.title = "Post " + post + " · Marktmeesters";
-  $("#titel").textContent = "Post: " + post;
-  $("#subtitel").textContent = "MARKTMEESTERS · " + post.toUpperCase();
+  // Zoek de post uit de link (hoofdletterongevoelig, zodat ?post=sleper ook werkt)
+  function werkPostBij() {
+    const vorigePost = post;
+    post = aandelen.find((a) => a.toLowerCase() === gevraagd.toLowerCase()) || null;
 
-  aandelen.forEach((a) => aandeelSelect.add(new Option(a, a)));
-  aandeelSelect.value = post;
+    const bestaat = !!post;
+    $("#onbekend").hidden = bestaat;
+    $("#inhoud").hidden = !bestaat;
+
+    if (!bestaat) {
+      document.title = "Onbekende post · Marktmeesters";
+      $("#titel").textContent = "Post niet gevonden";
+      $("#subtitel").textContent = "MARKTMEESTERS";
+      $("#onbekendNaam").textContent = gevraagd || "(geen naam)";
+      return;
+    }
+
+    document.title = "Post " + post + " · Marktmeesters";
+    $("#titel").textContent = "Post: " + post;
+    $("#subtitel").textContent = "MARKTMEESTERS · " + post.toUpperCase();
+
+    // Keuzelijst opnieuw vullen, met de gekozen waarde zo mogelijk behouden
+    const huidig = aandeelSelect.value;
+    aandeelSelect.innerHTML = "";
+    aandelen.forEach((a) => aandeelSelect.add(new Option(a, a)));
+    aandeelSelect.value = vorigePost !== post || !aandelen.includes(huidig) ? post : huidig;
+  }
 
   function naarLogin() {
     location.href = "/login.html?terug=" + encodeURIComponent(location.pathname + location.search);
@@ -47,7 +68,7 @@
     if (!state) return;
     $("#groepKnoppen").innerHTML = state.groups.map((g) => `
       <button type="button" class="keuzeknop ${g.id === gekozenGroep ? "actief" : ""}" data-groep="${g.id}">
-        ${g.name}
+        ${esc(g.name)}
       </button>`).join("");
   }
 
@@ -84,7 +105,7 @@
   // --- Weergave ---
 
   function werkSamenvattingBij() {
-    if (!state) return;
+    if (!state || !post) return;
     const aandeel = aandeelSelect.value;
     const aantal = Math.floor(Number(aantalInput.value)) || 0;
     const prijs = state.prices[aandeel];
@@ -101,7 +122,7 @@
 
     const werkwoord = gekozenActie === "buy" ? "koopt" : "verkoopt";
     samenvatting.innerHTML = groep
-      ? `${groep.name} ${werkwoord} <b>${aantal}× ${aandeel}</b> à ${euro(prijs)} = <b>${euro(totaal)}</b>${waarschuwing}`
+      ? `${esc(groep.name)} ${werkwoord} <b>${aantal}× ${esc(aandeel)}</b> à ${euro(prijs)} = <b>${euro(totaal)}</b>${waarschuwing}`
       : "";
 
     verwerkKnop.textContent = gekozenActie === "buy"
@@ -111,23 +132,23 @@
   }
 
   function tekenGroepen() {
-    if (!state) return;
+    if (!state || !post) return;
 
     koers.textContent = euro(state.prices[post]);
     const verschil = state.prices[post] - state.previous[post];
     koers.className = verschil < 0 ? "down" : "";
 
     groepen.innerHTML = state.groups.map((groep) => {
-      const waarde = aandelen.reduce((som, a) => som + groep.shares[a] * state.prices[a], 0);
+      const waarde = aandelen.reduce((som, a) => som + (groep.shares[a] || 0) * state.prices[a], 0);
 
       const bezit = aandelen.map((a) => `
         <span class="${a === post ? "hier" : ""}">
-          ${a}: <b>${groep.shares[a]}</b>
+          ${esc(a)}: <b>${groep.shares[a] || 0}</b>
         </span>`).join("");
 
       return `
         <article class="groepkaart ${groep.id === gekozenGroep ? "gekozen" : ""}">
-          <h3>${groep.name}</h3>
+          <h3>${esc(groep.name)}</h3>
           <div class="kas">${euro(groep.cash)}</div>
           <div class="waarde">Totale waarde: ${euro(groep.cash + waarde)}</div>
           <div class="bezit">${bezit}</div>
@@ -138,7 +159,7 @@
   function tekenNieuws() {
     if (!state || !state.news.length) return;
     const n = state.news[0];
-    const effecten = n.changes.map((c) => `${c.stock} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ");
+    const effecten = n.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ");
     $("#nieuwsbalk").innerHTML = `
       <span class="label">LAATSTE NIEUWS</span>
       <b>${esc(n.titel)}</b>${effecten ? " — " + effecten : ""}`;
@@ -147,6 +168,10 @@
   function verwerkState(nieuw) {
     const vorigeNieuws = state && state.news[0] && state.news[0].at;
     state = nieuw;
+    if (state.posts.join("|") !== aandelen.join("|") || !post) {
+      aandelen = state.posts;
+      werkPostBij();
+    }
     // Bestaat de gekozen groep niet meer (verwijderd in de instellingen)? Kies dan de eerste.
     if (!state.groups.some((g) => g.id === gekozenGroep) && state.groups.length) {
       gekozenGroep = state.groups[0].id;

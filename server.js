@@ -21,11 +21,9 @@ const SLEUTEL = crypto
 
 const COOKIE = "mm_sessie";
 
-const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
-
-const MIN_KOERS = 10;
-const MAX_KOERS = 250;
 const MAX_GROEPEN = 20;
+const MAX_POSTEN = 12;
+const VERBODEN_NAMEN = ["__proto__", "constructor", "prototype"];
 
 // --- Spelinstellingen ---
 // Dit zijn de standaardinstellingen. Je past ze normaal aan via de pagina
@@ -33,14 +31,16 @@ const MAX_GROEPEN = 20;
 // komt in het bestand instellingen.json te staan.
 const standaardInstellingen = {
   groepen: ["Groep 755", "Groep 1063", "Groep 1766", "Groep 1798"],
+  posten: [
+    { naam: "Eiland", beginKoers: 100 },
+    { naam: "Sleper", beginKoers: 105 },
+    { naam: "Gebouw", beginKoers: 95 },
+    { naam: "Loods", beginKoers: 125 },
+    { naam: "Lelievletten", beginKoers: 70 }
+  ],
   startkapitaal: 1000,
-  beginKoersen: {
-    Eiland: 100,
-    Sleper: 105,
-    Gebouw: 95,
-    Loods: 125,
-    Lelievletten: 70
-  }
+  minKoers: 10,
+  maxKoers: 250
 };
 
 const instellingenBestand = path.join(__dirname, "instellingen.json");
@@ -66,26 +66,57 @@ function bewaarInstellingen() {
   }
 }
 
+// Groepen mogen als tekst ("Bevers") of als object ({ id, name }) binnenkomen
+function groepNaam(item) {
+  return String(item && typeof item === "object" ? item.name : item).trim();
+}
+
+// Oudere instellingenbestanden hadden "beginKoersen" in plaats van "posten"
+function postenVan(inst) {
+  if (Array.isArray(inst.posten)) return inst.posten;
+  if (inst.beginKoersen && typeof inst.beginKoersen === "object") {
+    return Object.entries(inst.beginKoersen).map(([naam, beginKoers]) => ({ naam, beginKoers }));
+  }
+  return null;
+}
+
+function controleerNamen(namen, soort, maxAantal, maxLengte) {
+  if (namen.length < 1) return `Er moet minstens één ${soort} zijn.`;
+  if (namen.length > maxAantal) return `Maximaal ${maxAantal} ${soort === "groep" ? "groepen" : "posten"}.`;
+  if (namen.some((n) => !n)) return `Elke ${soort} heeft een naam nodig.`;
+  if (namen.some((n) => n.length > maxLengte)) return `Namen van een ${soort} mogen maximaal ${maxLengte} tekens zijn.`;
+  if (namen.some((n) => VERBODEN_NAMEN.includes(n))) return `"${namen.find((n) => VERBODEN_NAMEN.includes(n))}" kan niet als naam.`;
+  const uniek = new Set(namen.map((n) => n.toLowerCase()));
+  if (uniek.size !== namen.length) return `Twee keer dezelfde naam bij ${soort === "groep" ? "de groepen" : "de posten"}.`;
+  return null;
+}
+
 // Geeft een foutmelding terug, of null als alles goed is
 function controleerInstellingen(inst) {
   if (!inst || !Array.isArray(inst.groepen)) return "Groepen ontbreken.";
-  const namen = inst.groepen.map((n) => String(n && n.name !== undefined ? n.name : n).trim());
-  if (namen.length < 1) return "Er moet minstens één groep zijn.";
-  if (namen.length > MAX_GROEPEN) return `Maximaal ${MAX_GROEPEN} groepen.`;
-  if (namen.some((n) => !n)) return "Elke groep heeft een naam nodig.";
-  if (namen.some((n) => n.length > 30)) return "Groepsnamen mogen maximaal 30 tekens zijn.";
-  const uniek = new Set(namen.map((n) => n.toLowerCase()));
-  if (uniek.size !== namen.length) return "Twee groepen hebben dezelfde naam.";
+  const groepFout = controleerNamen(inst.groepen.map(groepNaam), "groep", MAX_GROEPEN, 30);
+  if (groepFout) return groepFout;
+
+  const posten = postenVan(inst);
+  if (!posten) return "Posten ontbreken.";
+  const postFout = controleerNamen(posten.map((p) => String((p && p.naam) || "").trim()), "post", MAX_POSTEN, 20);
+  if (postFout) return postFout;
 
   const kapitaal = Number(inst.startkapitaal);
   if (!Number.isInteger(kapitaal) || kapitaal < 0 || kapitaal > 1000000) {
     return "Startgeld moet een heel getal tussen 0 en 1.000.000 zijn.";
   }
 
-  for (const a of aandelen) {
-    const k = Number(inst.beginKoersen && inst.beginKoersen[a]);
-    if (!Number.isInteger(k) || k < MIN_KOERS || k > MAX_KOERS) {
-      return `Beginkoers van ${a} moet tussen € ${MIN_KOERS} en € ${MAX_KOERS} liggen.`;
+  const min = Number(inst.minKoers ?? 10);
+  const max = Number(inst.maxKoers ?? 250);
+  if (!Number.isInteger(min) || min < 1) return "De minimale koers moet een heel getal van minstens € 1 zijn.";
+  if (!Number.isInteger(max) || max > 1000000) return "De maximale koers mag niet hoger zijn dan € 1.000.000.";
+  if (min >= max) return "De minimale koers moet lager zijn dan de maximale koers.";
+
+  for (const p of posten) {
+    const k = Number(p.beginKoers);
+    if (!Number.isInteger(k) || k < min || k > max) {
+      return `Beginwaarde van ${String(p.naam).trim()} moet tussen € ${min} en € ${max} liggen.`;
     }
   }
   return null;
@@ -93,10 +124,16 @@ function controleerInstellingen(inst) {
 
 function normaliseer(inst) {
   return {
-    groepen: inst.groepen.map((n) => String(n && n.name !== undefined ? n.name : n).trim()),
+    groepen: inst.groepen.map(groepNaam),
+    posten: postenVan(inst).map((p) => ({ naam: String(p.naam).trim(), beginKoers: Number(p.beginKoers) })),
     startkapitaal: Number(inst.startkapitaal),
-    beginKoersen: Object.fromEntries(aandelen.map((a) => [a, Number(inst.beginKoersen[a])]))
+    minKoers: Number(inst.minKoers ?? 10),
+    maxKoers: Number(inst.maxKoers ?? 250)
   };
+}
+
+function postNamen() {
+  return instellingen.posten.map((p) => p.naam);
 }
 
 function nieuweGroep(id, naam) {
@@ -104,12 +141,14 @@ function nieuweGroep(id, naam) {
     id,
     name: naam,
     cash: instellingen.startkapitaal,
-    shares: Object.fromEntries(aandelen.map((a) => [a, 0]))
+    shares: Object.fromEntries(postNamen().map((a) => [a, 0]))
   };
 }
 
-// Nieuwsberichten staan nu op de server: zo blijft alles gelijk,
-// ook als de beurspagina per ongeluk herladen wordt.
+// --- Nieuws ---
+// Effecten zijn in PROCENTEN van de huidige koers, zodat ze ook kloppen
+// als je de koersen heel anders instelt (bijv. tussen € 1.000 en € 5.000).
+// Specifieke berichten worden alleen gebruikt als die post bestaat.
 const nieuws = [
   { titel: "Nieuwe aanlegsteiger opent", tekst: "De bereikbaarheid van het eiland verbetert direct.", effect: { Eiland: [18, 34] } },
   { titel: "Motorstoring bij de sleper", tekst: "Een onverwachte reparatie zet de planning onder druk.", effect: { Sleper: [-22, -10] } },
@@ -125,13 +164,51 @@ const nieuws = [
   { titel: "Eiland overspoeld door ganzen", tekst: "Kampeerders blijven weg zolang de ganzen er zitten.", effect: { Eiland: [-15, -6] } }
 ];
 
+// Algemene berichten werken voor elke post; {post} wordt de naam van een willekeurige post.
+const algemeenNieuws = [
+  { titel: "Goed nieuws voor {post}", tekst: "Beleggers zien de toekomst van {post} zonnig in.", effect: [10, 25] },
+  { titel: "Tegenvaller bij {post}", tekst: "Onverwachte kosten drukken de waarde van {post}.", effect: [-22, -8] },
+  { titel: "Drukte bij {post}", tekst: "Veel groepen tonen ineens interesse in {post}.", effect: [8, 20] },
+  { titel: "Twijfel over {post}", tekst: "Geruchten zorgen voor onrust rond {post}.", effect: [-15, -5] },
+  { titel: "Topdag voor {post}", tekst: "Alles zit mee bij {post} vandaag.", effect: [20, 35] }
+];
+
+function kiesNieuws() {
+  const posten = postNamen();
+  const vind = (naam) => posten.find((p) => p.toLowerCase() === naam.toLowerCase());
+
+  const specifiek = nieuws
+    .map((item) => {
+      const effect = {};
+      for (const [naam, bereik] of Object.entries(item.effect)) {
+        const echt = vind(naam);
+        if (echt) effect[echt] = bereik;
+      }
+      return Object.keys(effect).length ? { titel: item.titel, tekst: item.tekst, effect } : null;
+    })
+    .filter(Boolean);
+
+  const post = posten[Math.floor(Math.random() * posten.length)];
+  const algemeen = algemeenNieuws.map((item) => ({
+    titel: item.titel.replaceAll("{post}", post),
+    tekst: item.tekst.replaceAll("{post}", post),
+    effect: { [post]: item.effect }
+  }));
+
+  const keuze = [...specifiek, ...algemeen];
+  return keuze[Math.floor(Math.random() * keuze.length)];
+}
+
 const clients = new Set();
 let state;
 
 function nieuwSpel() {
+  const koersen = Object.fromEntries(instellingen.posten.map((p) => [p.naam, p.beginKoers]));
   state = {
-    prices: { ...instellingen.beginKoersen },
-    previous: { ...instellingen.beginKoersen },
+    posts: postNamen(),
+    limits: { min: instellingen.minKoers, max: instellingen.maxKoers },
+    prices: { ...koersen },
+    previous: { ...koersen },
     groups: instellingen.groepen.map((naam, i) => nieuweGroep(i + 1, naam)),
     news: [
       {
@@ -152,7 +229,7 @@ function randomGetal(van, tot) {
 }
 
 function begrens(koers) {
-  return Math.max(MIN_KOERS, Math.min(MAX_KOERS, Math.round(koers)));
+  return Math.max(instellingen.minKoers, Math.min(instellingen.maxKoers, Math.round(koers)));
 }
 
 function json(res, status, data) {
@@ -191,6 +268,70 @@ function leesBody(req) {
 function voegNieuwsToe(titel, tekst, changes) {
   state.news.unshift({ at: new Date().toISOString(), titel, tekst, changes });
   state.news = state.news.slice(0, 30);
+}
+
+// Nieuwe instellingen toepassen op een lopend spel, zonder opnieuw te beginnen
+function pasToeOpLopendSpel(body) {
+  // Posten: bestaande posten behouden hun koers (ook na hernoemen), nieuwe krijgen hun beginwaarde.
+  const oudePrijzen = state.prices;
+  const oudeVorige = state.previous;
+  const prijzen = {};
+  const vorige = {};
+  const hernoemd = {}; // oude naam -> nieuwe naam
+
+  instellingen.posten.forEach((p, i) => {
+    const item = postenVan(body)[i];
+    const oudeNaam = item && typeof item.id === "string" ? item.id : null;
+    // Bestond deze post al (eventueel onder een andere naam)? Dan blijft de koers staan.
+    if (oudeNaam && state.posts.includes(oudeNaam) && !Object.hasOwn(hernoemd, oudeNaam)) {
+      prijzen[p.naam] = begrens(oudePrijzen[oudeNaam]);
+      vorige[p.naam] = begrens(oudeVorige[oudeNaam]);
+      hernoemd[oudeNaam] = p.naam;
+    } else {
+      prijzen[p.naam] = p.beginKoers;
+      vorige[p.naam] = p.beginKoers;
+    }
+  });
+
+  const gesloten = state.posts.filter((naam) => !Object.hasOwn(hernoemd, naam));
+
+  // Groepen: bestaande behouden hun stand, nieuwe krijgen het startgeld.
+  const bestaand = new Map(state.groups.map((g) => [g.id, g]));
+  let volgendId = Math.max(0, ...state.groups.map((g) => g.id)) + 1;
+
+  const groepen = body.groepen.map((item, i) => {
+    const groep = bestaand.get(Number(item && item.id));
+    if (!groep) return nieuweGroep(volgendId++, instellingen.groepen[i]);
+
+    groep.name = instellingen.groepen[i];
+
+    // Aandelen van gesloten posten terugbetalen tegen de laatste koers
+    gesloten.forEach((naam) => {
+      groep.cash += (groep.shares[naam] || 0) * oudePrijzen[naam];
+    });
+
+    const nieuweShares = {};
+    postNamen().forEach((naam) => { nieuweShares[naam] = 0; });
+    Object.entries(hernoemd).forEach(([oud, nieuw]) => {
+      nieuweShares[nieuw] = groep.shares[oud] || 0;
+    });
+    groep.shares = nieuweShares;
+    return groep;
+  });
+
+  state.posts = postNamen();
+  state.limits = { min: instellingen.minKoers, max: instellingen.maxKoers };
+  state.prices = prijzen;
+  state.previous = vorige;
+  state.groups = groepen;
+
+  gesloten.forEach((naam) => {
+    voegNieuwsToe(
+      `Post ${naam} is gesloten`,
+      `Alle aandelen ${naam} zijn terugbetaald tegen € ${oudePrijzen[naam]} per stuk.`,
+      []
+    );
+  });
 }
 
 // --- Inloggen ---
@@ -345,12 +486,16 @@ const server = http.createServer(async (req, res) => {
 
     // Willekeurig nieuwsbericht: server kiest, past koersen aan en stuurt door.
     if (req.method === "POST" && url === "/api/news/random") {
-      const item = nieuws[Math.floor(Math.random() * nieuws.length)];
+      const item = kiesNieuws();
       state.previous = { ...state.prices };
 
       const changes = Object.entries(item.effect).map(([aandeel, [van, tot]]) => {
         const oud = state.prices[aandeel];
-        state.prices[aandeel] = begrens(oud + randomGetal(van, tot));
+        // Procentuele verandering, minstens € 1 omhoog of omlaag
+        const procent = randomGetal(van, tot);
+        let verschil = Math.round((oud * procent) / 100);
+        if (verschil === 0) verschil = procent > 0 ? 1 : -1;
+        state.prices[aandeel] = begrens(oud + verschil);
         return { stock: aandeel, diff: state.prices[aandeel] - oud };
       });
 
@@ -367,7 +512,7 @@ const server = http.createServer(async (req, res) => {
       const aandeel = String(body.stock || "");
       const diff = Math.round(Number(body.diff));
 
-      if (!titel || !aandelen.includes(aandeel) || !Number.isFinite(diff)) {
+      if (!titel || !state.posts.includes(aandeel) || !Number.isFinite(diff)) {
         return json(res, 400, { error: "Vul een titel, aandeel en koerswijziging in." });
       }
 
@@ -388,9 +533,14 @@ const server = http.createServer(async (req, res) => {
           id: g.id,
           name: g.name,
           cash: g.cash,
-          aandelen: aandelen.reduce((som, a) => som + g.shares[a], 0)
+          aandelen: state.posts.reduce((som, a) => som + g.shares[a], 0)
         })),
-        limieten: { minKoers: MIN_KOERS, maxKoers: MAX_KOERS, maxGroepen: MAX_GROEPEN }
+        posten: state.posts.map((naam) => ({
+          naam,
+          koers: state.prices[naam],
+          inBezit: state.groups.reduce((som, g) => som + g.shares[naam], 0)
+        })),
+        limieten: { maxGroepen: MAX_GROEPEN, maxPosten: MAX_POSTEN }
       });
     }
 
@@ -398,7 +548,11 @@ const server = http.createServer(async (req, res) => {
     // - Nieuwe namen gaan direct in.
     // - Nieuwe groepen krijgen direct het startgeld.
     // - Verwijderde groepen verdwijnen direct (met hun geld en aandelen).
-    // - Startgeld en beginkoersen gelden vanaf de volgende reset, of direct als "opnieuwStarten" aan staat.
+    // - Nieuwe posten starten direct op hun beginwaarde; hernoemde posten houden hun koers.
+    // - Verwijderde posten: aandelen worden terugbetaald tegen de laatste koers.
+    // - Min/max koers geldt direct (huidige koersen worden zo nodig bijgesteld).
+    // - Startgeld en beginwaarden van bestaande posten gelden vanaf de volgende reset,
+    //   of direct als "opnieuwStarten" aan staat.
     if (req.method === "PUT" && url === "/api/settings") {
       const body = await leesBody(req);
       const fout = controleerInstellingen(body);
@@ -410,18 +564,7 @@ const server = http.createServer(async (req, res) => {
       if (body.opnieuwStarten) {
         nieuwSpel();
       } else {
-        const bestaand = new Map(state.groups.map((g) => [g.id, g]));
-        let volgendId = Math.max(0, ...state.groups.map((g) => g.id)) + 1;
-
-        state.groups = body.groepen.map((item, i) => {
-          const id = Number(item && item.id);
-          const groep = bestaand.get(id);
-          if (groep) {
-            groep.name = instellingen.groepen[i];
-            return groep;
-          }
-          return nieuweGroep(volgendId++, instellingen.groepen[i]);
-        });
+        pasToeOpLopendSpel(body);
       }
 
       stuurUpdate();
@@ -441,9 +584,9 @@ const server = http.createServer(async (req, res) => {
       const aandeel = String(transactie.stock || "");
       const aantal = Math.floor(Number(transactie.qty));
       const actie = String(transactie.action || "");
-      const station = aandelen.includes(transactie.station) ? transactie.station : "";
+      const station = state.posts.includes(transactie.station) ? transactie.station : "";
 
-      if (!groep || !aandelen.includes(aandeel) || !(aantal >= 1)) {
+      if (!groep || !state.posts.includes(aandeel) || !(aantal >= 1)) {
         return json(res, 400, { error: "Vul een geldige groep, aandeel en aantal in." });
       }
 

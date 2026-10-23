@@ -31,11 +31,7 @@
     <nav class="lijst">
       <a class="beurs" href="/beurs.html">Beursleiding (groot scherm)</a>
       <a class="beurs-instellingen" href="/instellingen.html">⚙ Spelinstellingen</a>
-      <a href="/post.html?post=Eiland">Post Eiland</a>
-      <a href="/post.html?post=Sleper">Post Sleper</a>
-      <a href="/post.html?post=Gebouw">Post Gebouw</a>
-      <a href="/post.html?post=Loods">Post Loods</a>
-      <a href="/post.html?post=Lelievletten">Post Lelievletten</a>
+      <span id="postLinks"></span>
     </nav>
 
     <p class="uitleg" style="margin-top:28px">
@@ -44,6 +40,20 @@
   </main>
 
   <script>
+    // Knoppen voor de posten, op basis van de spelinstellingen
+    fetch("/api/state")
+      .then((r) => r.json())
+      .then((state) => {
+        const doel = document.querySelector("#postLinks");
+        doel.replaceWith(...state.posts.map((naam) => {
+          const a = document.createElement("a");
+          a.href = "/post.html?post=" + encodeURIComponent(naam);
+          a.textContent = "Post " + naam;
+          return a;
+        }));
+      })
+      .catch(() => {});
+
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => {

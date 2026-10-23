@@ -45,10 +45,23 @@ Na het wijzigen van een wachtwoord moet iedereen opnieuw inloggen.
 
 ## Spelregels in de app
 
-- 4 groepen starten met € 1.000 en geen aandelen.
-- Koersen liggen altijd tussen € 10 en € 250.
+- Groepen starten met het ingestelde startgeld en geen aandelen.
+- Koersen blijven altijd tussen de ingestelde minimale en maximale koers.
 - Kopen kan alleen met genoeg kasgeld, verkopen alleen met genoeg aandelen.
 - De tussenstand op de beurs telt kasgeld + aandelen tegen de huidige koers.
+- Willekeurig nieuws verandert koersen met een percentage, zodat het bij elke prijsschaal past.
+
+## Spelinstellingen
+
+Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
+
+- **Groepen**: hernoemen, toevoegen, verwijderen.
+- **Posten (aandelen)**: hernoemen, toevoegen, verwijderen en de beginwaarde instellen.
+  Een hernoemde post houdt zijn koers en aandelen. Bij een verwijderde post krijgen groepen hun aandelen terugbetaald.
+- **Koersgrenzen**: minimale en maximale koers.
+- **Startgeld** per groep.
+
+Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naam`). Kies de post dan opnieuw via de startpagina.
 
 ## Beursleiding
 
@@ -61,4 +74,4 @@ Alles staat op de server, dus pagina's herladen is veilig. Alleen als je de serv
 
 ## Aanpassen
 
-Bovenin `server.js` staan de beginkoersen, het startkapitaal, het aantal groepen en de lijst met nieuwsberichten.
+Bovenin `server.js` staan de standaardinstellingen (gebruikt als er nog niets is opgeslagen) en de lijst met nieuwsberichten.

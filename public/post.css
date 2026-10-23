@@ -150,3 +150,5 @@ button.verkoop { background: var(--orange); }
 @media (max-width: 800px) {
   .indeling { grid-template-columns: 1fr; }
 }
+
+[hidden] { display: none !important; }
