@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#071426">
+  <meta name="theme-color" content="var(--veld)">
   <title>Mijn groep · Marktmeesters</title>
   <link rel="stylesheet" href="/post.css">
   <style>
@@ -12,7 +12,7 @@
     .kaart {
       margin-top: 14px;
       padding: 18px;
-      border: 1px solid #29445f;
+      border: 1px solid var(--rand);
       border-radius: 16px;
       background: var(--card);
     }
@@ -25,7 +25,7 @@
       padding: 20px;
       background: var(--card);
       color: var(--white);
-      border: 1px solid #29445f;
+      border: 1px solid var(--rand);
       border-radius: 16px;
       font-size: 22px;
       text-align: left;
@@ -53,7 +53,7 @@
     .saldo .vak {
       padding: 12px;
       border-radius: 12px;
-      background: #071426;
+      background: var(--veld);
     }
     .saldo .vak > span { display: block; color: var(--muted); font-size: 13px; }
     .saldo .vak b { font-size: 20px; font-variant-numeric: tabular-nums; }
@@ -92,7 +92,7 @@
     .wissel {
       background: transparent;
       color: var(--cyan);
-      border: 1px solid #29445f;
+      border: 1px solid var(--rand);
       margin-top: 18px;
     }
 
@@ -123,6 +123,7 @@
     .vak.vol { grid-column: 1 / -1; }
     .koersrij small { color: var(--muted); margin-right: 8px; }
   </style>
+  <link id="thema" rel="stylesheet" href="/thema.css">
 </head>
 <body>
   <main>
@@ -242,6 +243,12 @@
         case "rente": return [`📈 Rente op lening: <b class="verlies">${euro(t.amount)}</b>`, " · lening is gestegen"];
         default: return [esc(t.action), ""];
       }
+    }
+
+    function zetThema(t) {
+      const link = document.getElementById("thema");
+      const href = "/thema.css?thema=" + encodeURIComponent(t);
+      if (t && link && link.getAttribute("href") !== href) link.setAttribute("href", href);
     }
 
     function tijd(iso) {
@@ -420,6 +427,7 @@
       bron.onmessage = (event) => {
         const data = JSON.parse(event.data);
         laatsteData = data;
+        zetThema(data.thema);
         if (data.serverNow) klokVerschil = data.serverNow - Date.now();
         tekenSpeelbalk();
         if (data.groep) {

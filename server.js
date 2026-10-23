@@ -45,8 +45,34 @@ const standaardInstellingen = {
   minKoers: 10,
   maxKoers: 250,
   regels: standaardRegels(),
+  thema: "roze", // zie de kleurthema's hieronder
   nieuws: null // null = de standaardberichten (zie standaardNieuws)
 };
+
+// --- Kleurthema's ---
+// accent = knoppen en koppen, accent2 = tweede kleur (nieuws, verkopen), de rest is achtergrond.
+const themas = {
+  roze:   { naam: "Roze",        bg: "#22071a", top: "#4f1440", card: "#3a0f2e", kaart2: "#4f163f", kaart3: "#2d0b24", paneel: "#2a0920e6", rand: "#6e2a5a", rand2: "#9a4f83", veld: "#1a0514", accent: "#ff6fb5", accent2: "#ffb86b", muted: "#e6bcd6", gevaar: "#7a1f3d" },
+  blauw:  { naam: "Blauw",       bg: "#071426", top: "#153451", card: "#10253d", kaart2: "#15324f", kaart3: "#0b1d33", paneel: "#08172de6", rand: "#29445f", rand2: "#52708b", veld: "#071426", accent: "#18d0e5", accent2: "#ff9d2e", muted: "#a9b8c8", gevaar: "#5a2030" },
+  paars:  { naam: "Paars",       bg: "#120a24", top: "#2f1b57", card: "#211340", kaart2: "#2c1a54", kaart3: "#190f31", paneel: "#160c2ce6", rand: "#463272", rand2: "#6f5aa3", veld: "#0e081c", accent: "#b892ff", accent2: "#ffd166", muted: "#c8bde3", gevaar: "#5d2048" },
+  bos:    { naam: "Bosgroen",    bg: "#061a11", top: "#134229", card: "#0e2c1d", kaart2: "#143a27", kaart3: "#0a2216", paneel: "#081d13e6", rand: "#285a3f", rand2: "#4f8a69", veld: "#05140d", accent: "#7ee081", accent2: "#ffc95c", muted: "#b4d3c1", gevaar: "#5c2a1f" },
+  oranje: { naam: "Zonsondergang", bg: "#1f0c05", top: "#552108", card: "#341509", kaart2: "#45200e", kaart3: "#281006", paneel: "#240e06e6", rand: "#6f3518", rand2: "#a5623a", veld: "#170903", accent: "#ff9d42", accent2: "#ffd166", muted: "#e6c3ad", gevaar: "#6a1f1f" },
+  rood:   { naam: "Scoutingrood", bg: "#1c0708", top: "#4d1214", card: "#320d0f", kaart2: "#441316", kaart3: "#26090b", paneel: "#220809e6", rand: "#6b2427", rand2: "#a24e52", veld: "#150506", accent: "#ff6b6b", accent2: "#ffd166", muted: "#e8c1c1", gevaar: "#6b1a2a" },
+  nacht:  { naam: "Nacht (zwart)", bg: "#0b0b0d", top: "#25262b", card: "#18191d", kaart2: "#202126", kaart3: "#131417", paneel: "#111114e6", rand: "#34363d", rand2: "#5b5e68", veld: "#0a0a0c", accent: "#f2f2f2", accent2: "#ffb347", muted: "#b5b7bf", gevaar: "#5a2030" }
+};
+const STANDAARD_THEMA = "roze";
+
+function themaCss(sleutel) {
+  const t = themas[sleutel] || themas[STANDAARD_THEMA];
+  return `:root, :root:root {
+  --bg: ${t.bg}; --top: ${t.top}; --card: ${t.card}; --kaart2: ${t.kaart2}; --kaart3: ${t.kaart3};
+  --paneel: ${t.paneel}; --rand: ${t.rand}; --rand2: ${t.rand2}; --veld: ${t.veld};
+  --cyan: ${t.accent}; --orange: ${t.accent2}; --muted: ${t.muted}; --gevaar: ${t.gevaar};
+  --white: #f7fafc; --green: #39d98a; --red: #ff5c6c;
+}
+body { background: radial-gradient(circle at top, var(--top), var(--bg) 55%) fixed; background-color: var(--bg); }
+`;
+}
 
 // Spelregels. Een 0 betekent: staat uit.
 function standaardRegels() {
@@ -174,6 +200,8 @@ function controleerInstellingen(inst) {
     }
   }
 
+  if (inst.thema !== undefined && !Object.hasOwn(themas, String(inst.thema))) return "Onbekend kleurthema.";
+
   const regels = { ...standaardRegels(), ...(inst.regels || {}) };
   for (const [sleutel, [laag, hoog, naam]] of Object.entries(regelGrenzen)) {
     const w = Number(regels[sleutel]);
@@ -193,6 +221,7 @@ function normaliseer(inst) {
     startkapitaal: Number(inst.startkapitaal),
     minKoers: Number(inst.minKoers ?? 10),
     maxKoers: Number(inst.maxKoers ?? 250),
+    thema: Object.hasOwn(themas, String(inst.thema)) ? String(inst.thema) : STANDAARD_THEMA,
     regels: Object.fromEntries(
       Object.keys(regelGrenzen).map((k) => [k, Number({ ...standaardRegels(), ...(inst.regels || {}) }[k])])
     ),
@@ -441,6 +470,7 @@ let tips = [];
 function werkRegelsBij() {
   state.rules = { ...instellingen.regels };
   state.supply = Object.fromEntries(instellingen.posten.map((p) => [p.naam, p.voorraad]));
+  state.thema = instellingen.thema;
 }
 
 instellingen = laadInstellingen();
@@ -522,6 +552,20 @@ function rekenRente() {
   return iemand;
 }
 
+// Een geplande tip laten uitkomen: de koers verandert en er verschijnt een nieuwsbericht
+function voerTipUit(tip) {
+  const p = tip.plan;
+  p.status = "uitgevoerd";
+  p.uitgevoerdOp = new Date().toISOString();
+  if (!state.posts.includes(p.stock)) { p.status = "vervallen"; return; } // post bestaat niet meer
+  state.previous = { ...state.prices };
+  const oud = state.prices[p.stock];
+  let verschil = Math.round((oud * p.procent) / 100);
+  if (verschil === 0) verschil = p.procent > 0 ? 1 : -1;
+  state.prices[p.stock] = begrens(oud + verschil);
+  voegNieuwsToe(p.titel, p.tekst, [{ stock: p.stock, diff: state.prices[p.stock] - oud }]);
+}
+
 // Elke seconde: klok bijwerken, dividend en rente uitbetalen, beurs sluiten als de tijd op is
 let vorigeTik = Date.now();
 setInterval(() => {
@@ -549,6 +593,14 @@ setInterval(() => {
       k.laatsteRente = k.actief;
       veranderd = rekenRente() || veranderd;
     }
+
+    // Geplande tips laten uitkomen
+    tips.forEach((tip) => {
+      if (tip.plan && tip.plan.status === "gepland" && k.actief >= tip.plan.bijActief) {
+        voerTipUit(tip);
+        veranderd = true;
+      }
+    });
   }
 
   if (veranderd) stuurUpdate();
@@ -594,11 +646,14 @@ function spelerWeergave(groepId) {
       ? state.transactions.filter((t) => t.groupId === groep.id).slice(0, 15)
       : [],
     game: state.game,
+    thema: state.thema,
     rules: state.rules,
     supply: state.supply,
     held: Object.fromEntries(state.posts.map((a) => [a, inBezit(a)])),
     serverNow: Date.now(),
-    tips: groep ? tips.filter((t) => t.groupId === groep.id).slice(0, 5) : [],
+    tips: groep
+      ? tips.filter((t) => t.groupId === groep.id).slice(0, 5).map((t) => ({ at: t.at, tekst: t.tekst }))
+      : [],
     // De eindstand is pas zichtbaar als de beurs gesloten is
     eindstand: state.game.status === "gesloten" ? rangLijst() : null
   };
@@ -821,6 +876,14 @@ const server = http.createServer(async (req, res) => {
   const url = (req.url || "/").split("?")[0];
 
   try {
+    // Kleurthema als stylesheet (openbaar). ?thema=naam toont een ander thema (voor de voorbeeldweergave).
+    if (req.method === "GET" && url === "/thema.css") {
+      const gevraagd = new URL(req.url, "http://x").searchParams.get("thema");
+      const sleutel = gevraagd && Object.hasOwn(themas, gevraagd) ? gevraagd : instellingen.thema;
+      res.writeHead(200, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "no-store" });
+      return res.end(themaCss(sleutel));
+    }
+
     // Inloggen en uitloggen zijn voor iedereen bereikbaar
     if (req.method === "POST" && url === "/api/login") {
       const ip = ipVan(req);
@@ -859,7 +922,7 @@ const server = http.createServer(async (req, res) => {
 
       const alleenBeurs =
         url.startsWith("/api/news/") || url === "/api/reset" || url === "/api/settings" ||
-        url === "/api/game" || url === "/api/tip" || url === "/api/backup" || url === "/api/herstel";
+        url === "/api/game" || url.startsWith("/api/tip") || url === "/api/backup" || url === "/api/herstel";
       if (alleenBeurs && rol !== "beurs") {
         return json(res, 403, { error: "Alleen de beursleiding mag dit doen." });
       }
@@ -968,7 +1031,8 @@ const server = http.createServer(async (req, res) => {
           inBezit: state.groups.reduce((som, g) => som + g.shares[naam], 0)
         })),
         limieten: { maxGroepen: MAX_GROEPEN, maxPosten: MAX_POSTEN, regels: regelGrenzen },
-        standaardNieuws
+        standaardNieuws,
+        themas: Object.fromEntries(Object.entries(themas).map(([k, t]) => [k, { naam: t.naam, accent: t.accent, accent2: t.accent2, bg: t.bg, top: t.top, card: t.card }]))
       });
     }
 
@@ -1070,10 +1134,72 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url === "/api/tip") {
       const body = await leesBody(req);
       const groep = state.groups.find((g) => g.id === Number(body.groep));
-      const tekst = String(body.tekst || "").trim().slice(0, 200);
-      if (!groep || !tekst) return json(res, 400, { error: "Kies een groep en schrijf een tip." });
-      tips.unshift({ at: new Date().toISOString(), groupId: groep.id, group: groep.name, tekst });
+      if (!groep) return json(res, 400, { error: "Kies een groep." });
+
+      // Optioneel: de tip laat na een aantal minuten echt een koers veranderen
+      let plan = null;
+      if (body.plan) {
+        const aandeel = String(body.plan.stock || "");
+        const procent = Math.round(Number(body.plan.procent));
+        const minuten = Number(body.plan.minuten);
+        if (!state.posts.includes(aandeel)) return json(res, 400, { error: "Kies het aandeel waar de tip over gaat." });
+        if (!Number.isFinite(procent) || procent === 0 || procent < -90 || procent > 300) {
+          return json(res, 400, { error: "Kies een stijging of daling tussen -90% en +300% (niet 0)." });
+        }
+        if (!(minuten >= 0.5 && minuten <= 120)) return json(res, 400, { error: "Kies na hoeveel minuten het gebeurt (0,5 tot 120)." });
+        const omhoog = procent > 0;
+        plan = {
+          stock: aandeel,
+          procent,
+          minuten,
+          bijActief: state.klok.actief + Math.round(minuten * 60000),
+          status: "gepland",
+          titel: String(body.plan.titel || "").trim().slice(0, 100) ||
+            (omhoog ? `${aandeel} schiet ineens omhoog!` : `${aandeel} keldert ineens!`),
+          tekst: String(body.plan.tekst || "").trim().slice(0, 300) ||
+            (omhoog ? "Wie dit zag aankomen, heeft goed verdiend." : "Wie op tijd verkocht, heeft geluk gehad.")
+        };
+      }
+
+      let tekst = String(body.tekst || "").trim().slice(0, 200);
+      if (!tekst && plan) {
+        const tijd = plan.minuten < 1 ? "heel snel" : `binnen ${Math.round(plan.minuten)} minuten`;
+        tekst = plan.procent > 0
+          ? `Psst… ${plan.stock} gaat ${tijd} flink stijgen. Slaan jullie je slag?`
+          : `Psst… ${plan.stock} gaat ${tijd} flink dalen. Misschien nu verkopen?`;
+      }
+      if (!tekst) return json(res, 400, { error: "Schrijf een tip." });
+
+      tips.unshift({
+        id: crypto.randomBytes(5).toString("hex"),
+        at: new Date().toISOString(),
+        groupId: groep.id,
+        group: groep.name,
+        tekst,
+        plan
+      });
       tips = tips.slice(0, 50);
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
+
+    // Een geplande tip annuleren (de groep houdt de tip wel, maar de koers verandert niet)
+    if (req.method === "POST" && url === "/api/tip/annuleer") {
+      const body = await leesBody(req);
+      const tip = tips.find((t) => t.id === String(body.id));
+      if (!tip || !tip.plan || tip.plan.status !== "gepland") return json(res, 400, { error: "Deze tip staat niet (meer) gepland." });
+      tip.plan.status = "geannuleerd";
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
+
+    // Een geplande tip nu meteen laten uitkomen
+    if (req.method === "POST" && url === "/api/tip/nu") {
+      if (!handelOpen()) return json(res, 400, { error: geslotenMelding() });
+      const body = await leesBody(req);
+      const tip = tips.find((t) => t.id === String(body.id));
+      if (!tip || !tip.plan || tip.plan.status !== "gepland") return json(res, 400, { error: "Deze tip staat niet (meer) gepland." });
+      voerTipUit(tip);
       stuurUpdate();
       return json(res, 200, { ok: true });
     }

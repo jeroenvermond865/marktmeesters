@@ -13,7 +13,7 @@
       gap: 14px;
       margin-top: 18px;
       padding: 22px;
-      border: 1px solid #29445f;
+      border: 1px solid var(--rand);
       border-radius: 16px;
       background: var(--card);
     }
@@ -36,7 +36,7 @@
     .kop { color: var(--muted); font-size: 13px; font-weight: 600; }
 
     .verwijder {
-      background: #5a2030;
+      background: var(--gevaar);
       color: var(--white);
       font-size: 20px;
       padding: 8px;
@@ -68,9 +68,9 @@
 
     .klein-knoppen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .klein-knoppen button, .klein-knoppen label.knop, .nieuwsbalk-knoppen button {
-      background: #071426;
+      background: var(--veld);
       color: var(--white);
-      border: 1px solid #52708b;
+      border: 1px solid var(--rand2);
       font-weight: 700;
       text-align: center;
       padding: 12px;
@@ -86,9 +86,9 @@
     .nieuwsbalk-knoppen .verzin { background: var(--orange); color: var(--bg); border-color: var(--orange); }
 
     details.bericht {
-      border: 1px solid #29445f;
+      border: 1px solid var(--rand);
       border-radius: 12px;
-      background: #0b1d33;
+      background: var(--kaart3);
     }
     details.bericht[open] { border-color: var(--cyan); }
     details.bericht summary {
@@ -110,6 +110,23 @@
     .op { color: var(--green); }
     .neer { color: var(--red); }
 
+    .themas { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .thema-keuze {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 2px solid var(--rand);
+      border-radius: 14px;
+      background: transparent;
+      color: var(--white);
+      font-weight: 700;
+      text-align: left;
+    }
+    .thema-keuze.actief { border-color: var(--cyan); box-shadow: 0 0 0 2px var(--cyan); }
+    .thema-voorbeeld { height: 54px; border-radius: 9px; position: relative; overflow: hidden; }
+    .thema-voorbeeld i { position: absolute; bottom: 8px; height: 12px; border-radius: 6px; }
+    .thema-keuze small { color: var(--muted); font-weight: 400; }
+
     @media (max-width: 600px) {
       .rij.post { grid-template-columns: 1fr 80px 70px 44px; }
       .rij { grid-template-columns: 1fr 48px; }
@@ -118,6 +135,7 @@
       .knoppen { grid-template-columns: 1fr; }
     }
   </style>
+  <link id="thema" rel="stylesheet" href="/thema.css">
 </head>
 <body>
   <main>
@@ -152,6 +170,12 @@
       <div id="posten"></div>
       <button type="button" class="toevoegen" id="postToevoegen">+ Post toevoegen</button>
       <p class="opmerking">De beginwaarde van een bestaande post geldt vanaf de volgende keer dat het spel opnieuw begint. Voorraad gaat direct in.</p>
+    </section>
+
+    <section class="kaart">
+      <h2>Kleuren</h2>
+      <p class="opmerking">Kies een kleurthema voor alle schermen: beurs, posten, ledenpagina en inloggen. Je ziet het meteen op deze pagina; na Opslaan wisselen alle schermen mee.</p>
+      <div class="themas" id="themas"></div>
     </section>
 
     <section class="kaart">
@@ -259,6 +283,29 @@
     let opgeslagen = null; // laatst geladen gegevens van de server
     let limieten = { maxGroepen: 20, maxPosten: 12 };
     let standaardBerichten = [];
+    let themas = {};
+    let gekozenThema = "roze";
+
+    function tekenThemas() {
+      const doel = $("#themas");
+      doel.innerHTML = "";
+      Object.entries(themas).forEach(([sleutel, t]) => {
+        const knop = maak("button", { type: "button", className: "thema-keuze" + (sleutel === gekozenThema ? " actief" : "") });
+        knop.innerHTML = `
+          <span class="thema-voorbeeld" style="background:radial-gradient(circle at top, ${t.top}, ${t.bg} 75%)">
+            <i style="left:8px;width:46%;background:${t.accent}"></i>
+            <i style="right:8px;width:28%;background:${t.accent2}"></i>
+          </span>
+          <span>${t.naam}${sleutel === "roze" ? " <small>(standaard)</small>" : ""}</span>`;
+        knop.addEventListener("click", () => {
+          gekozenThema = sleutel;
+          document.getElementById("thema").setAttribute("href", "/thema.css?thema=" + sleutel); // voorbeeld op deze pagina
+          tekenThemas();
+          melden(`Thema "${t.naam}" gekozen. Klik op Opslaan om het voor alle schermen te gebruiken.`, true);
+        });
+        doel.append(knop);
+      });
+    }
 
     function euro(bedrag) {
       return "€ " + Number(bedrag).toLocaleString("nl-NL");
@@ -544,6 +591,7 @@
         startkapitaal: Number($("#startkapitaal").value),
         minKoers: Number($("#minKoers").value),
         maxKoers: Number($("#maxKoers").value),
+        thema: gekozenThema,
         regels,
         nieuws: berichten.map((b) => ({
           titel: b.titel.trim(),
@@ -554,6 +602,11 @@
     }
 
     function vulFormulier(inst) {
+      if (inst.thema && themas[inst.thema]) {
+        gekozenThema = inst.thema;
+        document.getElementById("thema").setAttribute("href", "/thema.css?thema=" + inst.thema);
+        tekenThemas();
+      }
       $("#startkapitaal").value = inst.startkapitaal;
       $("#minKoers").value = inst.minKoers;
       $("#maxKoers").value = inst.maxKoers;
@@ -575,6 +628,7 @@
       opgeslagen = data;
       limieten = data.limieten;
       standaardBerichten = data.standaardNieuws;
+      themas = data.themas || {};
 
       groepRijen = data.groepen.map((g) => ({ ...g }));
       const perPost = Object.fromEntries(data.instellingen.posten.map((p) => [p.naam, p]));
@@ -674,6 +728,7 @@
         startkapitaal: data.startkapitaal,
         minKoers: data.minKoers,
         maxKoers: data.maxKoers,
+        thema: data.thema,
         regels: data.regels,
         nieuws: data.nieuws
       });
@@ -716,6 +771,7 @@
           minKoers: data.minKoers ?? $("#minKoers").value,
           maxKoers: data.maxKoers ?? $("#maxKoers").value,
           regels: data.regels,
+          thema: data.thema,
           nieuws: data.nieuws
         });
 

@@ -73,6 +73,7 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
   Een hernoemde post houdt zijn koers en aandelen. Bij een verwijderde post krijgen groepen hun aandelen terugbetaald.
 - **Koersgrenzen**: minimale en maximale koers.
 - **Startgeld** per groep.
+- **Kleuren**: kies een kleurthema voor alle schermen (standaard roze).
 - **Spelregels**: speelduur, dividend, koersreactie, maximaal lenen en rente.
 - **Nieuwsberichten**: aanpassen, verwijderen, zelf schrijven of laten verzinnen met 🎲 *Verzin een bericht*.
 
@@ -86,6 +87,8 @@ Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naa
 - **Beurskrach / Hausse**: alle koersen dalen of stijgen in één keer 15–30%.
 - **Eigen nieuwsbericht**: zelf een kop verzinnen en één koers met een bedrag aanpassen.
 - **Geheime tip**: een bericht dat alleen op de ledenpagina van één groep verschijnt.
+  Met *Laat het ook echt gebeuren* verandert de koers na het gekozen aantal minuten speeltijd vanzelf, met een nieuwsbericht.
+  Een geplande tip kun je annuleren of meteen laten gebeuren; tijdens een pauze staat de aftelling stil.
 - **Koersgrafiek**: het verloop van alle aandelen over het hele spel.
 - **Reset spel**: alles terug naar het begin.
 

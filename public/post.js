@@ -341,9 +341,16 @@
       <b>${esc(n.titel)}</b>${effecten ? " — " + effecten : ""}`;
   }
 
+  function zetThema(t) {
+    const link = document.getElementById("thema");
+    const href = "/thema.css?thema=" + encodeURIComponent(t);
+    if (t && link && link.getAttribute("href") !== href) link.setAttribute("href", href);
+  }
+
   function verwerkState(nieuw) {
     const vorigeNieuws = state && state.news[0] && state.news[0].at;
     state = nieuw;
+    zetThema(state.thema);
     if (state.serverNow) klokVerschil = state.serverNow - Date.now();
     if (state.posts.join("|") !== aandelen.join("|") || !post) {
       aandelen = state.posts;
