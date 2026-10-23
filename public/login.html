@@ -55,7 +55,7 @@
         }
 
         // Een post die naar de beurs wilde, gaat naar de startpagina
-        if (inhoud.rol === "post" && (terug.startsWith("/beurs") || terug.startsWith("/instellingen"))) terug = "/";
+        if (inhoud.rol === "post" && !(terug === "/" || terug.startsWith("/post") || terug.startsWith("/index"))) terug = "/";
         // Leden gaan altijd naar hun eigen groepspagina
         if (inhoud.rol === "speler" && !terug.startsWith("/groep")) terug = "/groep.html";
         location.href = terug;

@@ -30,10 +30,11 @@
     <p class="uitleg">Kies welk scherm dit apparaat moet tonen.</p>
 
     <nav class="lijst">
-      <a class="beurs" href="/beurs.html">Beursleiding (groot scherm)</a>
-      <a class="beurs-instellingen" href="/instellingen.html">⚙ Spelinstellingen</a>
+      <a class="beurs alleen-beurs" href="/leiding.html">📱 Bediening (beursleiding)</a>
+      <a class="alleen-beurs" href="/beurs.html">📺 Groot scherm</a>
+      <a class="alleen-beurs" href="/instellingen.html">⚙ Spelinstellingen</a>
       <span id="postLinks"></span>
-      <a href="/groep.html">👀 Ledenpagina (eigen saldo bekijken)</a>
+      <a class="alleen-beurs" href="/groep.html">👀 Ledenpagina (eigen saldo bekijken)</a>
     </nav>
 
     <p class="uitleg" style="margin-top:28px">
@@ -60,10 +61,8 @@
       .then((r) => r.json())
       .then((data) => {
         document.querySelector("#rol").textContent = data.rol === "beurs" ? "beursleiding" : "post";
-        if (data.rol !== "beurs") {
-          document.querySelector(".beurs").remove();
-          document.querySelector(".beurs-instellingen").remove();
-        }
+        // Posten zien alleen de knoppen voor de posten
+        if (data.rol !== "beurs") document.querySelectorAll(".alleen-beurs").forEach((el) => el.remove());
       })
       .catch(() => {});
 

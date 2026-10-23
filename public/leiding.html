@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#22071a">
+  <title>Bediening · Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+  <style>
+    main { max-width: 620px; padding-bottom: 60px; }
+
+    .kaart {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 18px;
+      border: 1px solid var(--rand);
+      border-radius: 16px;
+      background: var(--card);
+    }
+    .kaart h2 { margin: 0; font-size: 19px; }
+    .tag { color: var(--cyan); font-weight: 800; letter-spacing: .12em; font-size: 13px; }
+    .status { margin: 0; color: var(--muted); line-height: 1.45; font-size: 14px; }
+
+    /* Grote klok bovenaan */
+    .klok {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      margin: 12px -16px 0;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--rand);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .klok small { display: block; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .1em; }
+    .klok b { font-size: 34px; font-variant-numeric: tabular-nums; }
+    .klok.slot b { color: var(--red); }
+    .klok.dicht b { color: var(--orange); }
+    .klok .rechts { text-align: right; color: var(--muted); font-size: 13px; }
+
+    .tweeknop { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rij { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+    .stil { background: var(--veld); color: var(--white); border: 1px solid var(--rand2); }
+    .oranje { background: var(--orange); }
+    .krach { background: var(--red); color: #fff; }
+    .hausse { background: var(--green); }
+    .gevaar { background: var(--gevaar); color: #fff; }
+    .groot { padding: 18px; font-size: 18px; }
+
+    .auto { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); }
+    .auto label { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--white); }
+    .auto input[type="checkbox"] { width: 24px; height: 24px; }
+    .auto input[type="number"] { width: 100px; text-align: right; }
+    .slotfase { color: var(--red); font-weight: 800; }
+
+    .tip-plan { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--rand); border-radius: 12px; }
+    .tip-plan[hidden] { display: none; }
+    .tip-rij { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tip-rij label { font-weight: 600; color: var(--muted); font-size: 13px; }
+    .tip-snel button.actief { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+    .tiplijst { font-size: 14px; color: var(--muted); }
+    .tiplijst > div { padding: 10px 0; border-bottom: 1px solid #ffffff12; }
+    .tiplijst > div:last-child { border-bottom: 0; }
+    .tiplijst b { color: var(--white); }
+    .tiplijst .gepland { color: var(--orange); font-weight: 700; margin-top: 4px; }
+    .tiplijst .klaar { color: var(--green); margin-top: 4px; }
+    .tiplijst .weg { text-decoration: line-through; margin-top: 4px; }
+    .tiplijst .tipknoppen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .tiplijst .tipknoppen button { padding: 10px; font-size: 14px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    td { padding: 8px 4px; border-bottom: 1px solid #ffffff14; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.eerste td { color: var(--orange); font-weight: 800; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    .koersen { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .koers { padding: 10px 12px; border-radius: 12px; background: var(--veld); }
+    .koers small { display: block; color: var(--muted); }
+    .koers b { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+    .links { display: grid; gap: 10px; }
+    .links a {
+      display: block;
+      padding: 14px;
+      border: 1px solid var(--rand2);
+      border-radius: 12px;
+      color: var(--white);
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+    }
+  </style>
+  <link id="thema" rel="stylesheet" href="/thema.css">
+</head>
+<body>
+  <main>
+    <div class="topbalk">
+      <span class="eyebrow" style="margin:0">MARKTMEESTERS · BEDIENING</span>
+      <span class="verbinding" id="verbinding">Verbinden…</span>
+    </div>
+
+    <div class="klok" id="klok">
+      <div><small id="klokLabel">BEURS</small><b id="klokTijd">–</b></div>
+      <div class="rechts" id="klokInfo"></div>
+    </div>
+
+    <!-- Speeltijd -->
+    <section class="kaart">
+      <h2>⏱ Speeltijd</h2>
+      <p class="status" id="speelStatus"></p>
+      <div style="display:grid;gap:10px" id="speelKnoppen"></div>
+    </section>
+
+    <!-- Nieuws -->
+    <section class="kaart">
+      <h2>📰 Nieuws</h2>
+      <button type="button" class="groot" id="randomKnop">Willekeurig nieuws</button>
+      <div class="auto">
+        <label><input type="checkbox" id="autoAan"> Automatisch elke</label>
+        <input type="number" id="autoInterval" min="5" max="3600" step="1" value="180" inputmode="numeric" aria-label="Seconden">
+        seconden
+      </div>
+      <p class="status" id="autoStatus"></p>
+      <div class="tweeknop">
+        <button type="button" class="krach" id="krachKnop">📉 Beurskrach</button>
+        <button type="button" class="hausse" id="hausseKnop">📈 Hausse</button>
+      </div>
+    </section>
+
+    <!-- Eigen nieuwsbericht -->
+    <section class="kaart">
+      <h2>✏️ Eigen nieuwsbericht</h2>
+      <form id="eigenNieuws" style="display:grid;gap:10px">
+        <input id="nTitel" placeholder="Kop, bijv. 'Kapotte peddel gevonden'" maxlength="100" required>
+        <input id="nTekst" placeholder="Toelichting (optioneel)" maxlength="300">
+        <div class="rij" style="grid-template-columns:1fr 110px">
+          <select id="nAandeel" aria-label="Aandeel"></select>
+          <input id="nDiff" type="number" placeholder="+/- €" required inputmode="numeric">
+        </div>
+        <button type="submit">Plaats nieuws</button>
+      </form>
+    </section>
+
+    <!-- Geheime tip -->
+    <section class="kaart">
+      <h2>🤫 Geheime tip</h2>
+      <p class="status">Alleen te zien op de ledenpagina van die ene groep.</p>
+      <form id="tipForm" style="display:grid;gap:10px">
+        <select id="tipGroep" aria-label="Groep"></select>
+        <div class="auto"><label><input type="checkbox" id="tipEcht" checked> Laat het ook echt gebeuren</label></div>
+        <div class="tip-plan" id="tipPlan">
+          <select id="tipAandeel" aria-label="Aandeel"></select>
+          <div class="tip-rij">
+            <label>Verandering %<input id="tipProcent" type="number" step="1" value="25" inputmode="numeric"></label>
+            <label>Na minuten<input id="tipMinuten" type="number" step="0.5" min="0.5" max="120" value="5" inputmode="decimal"></label>
+          </div>
+          <div class="tweeknop tip-snel">
+            <button type="button" class="stil" data-tip-richting="1">📈 Stijgt</button>
+            <button type="button" class="stil" data-tip-richting="-1">📉 Daalt</button>
+          </div>
+        </div>
+        <input id="tipTekst" placeholder="Tiptekst (leeg = automatisch)" maxlength="200">
+        <p class="status" id="tipVoorbeeld"></p>
+        <button type="submit">🤫 Stuur tip</button>
+      </form>
+      <div class="tiplijst" id="tipLijst"></div>
+    </section>
+
+    <!-- Groot scherm -->
+    <section class="kaart">
+      <h2>📺 Groot scherm</h2>
+      <p class="status" id="schermStatus"></p>
+      <button type="button" class="stil" id="eindeKnop">🏆 Eindscherm tonen</button>
+    </section>
+
+    <!-- Stand -->
+    <section class="kaart">
+      <h2>🏁 Tussenstand</h2>
+      <table><tbody id="stand"></tbody></table>
+    </section>
+
+    <section class="kaart">
+      <h2>📈 Koersen</h2>
+      <div class="koersen" id="koersen"></div>
+    </section>
+
+    <section class="kaart">
+      <h2>Overig</h2>
+      <div class="links">
+        <a href="/instellingen.html">⚙ Spelinstellingen</a>
+        <a href="/beurs.html" target="_blank">📺 Groot scherm openen</a>
+        <a href="/">Startpagina (posten)</a>
+      </div>
+      <button type="button" class="gevaar" id="resetKnop">Reset spel</button>
+    </section>
+  </main>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    let state = null;
+    let aandelen = [];
+    let klokVerschil = 0;
+
+    function esc(tekst) {
+      return String(tekst).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+    const euro = (b) => "€ " + Math.round(Number(b)).toLocaleString("nl-NL");
+    const tijd = (iso) => new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+    function mmss(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      const u = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = String(s % 60).padStart(2, "0");
+      return u ? `${u}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`;
+    }
+    const nuServer = () => Date.now() + klokVerschil;
+    const handelOpen = () => state && (state.game.status === "vrij" || state.game.status === "loopt");
+
+    function zetThema(t) {
+      const link = document.getElementById("thema");
+      const href = "/thema.css?thema=" + encodeURIComponent(t);
+      if (t && link.getAttribute("href") !== href) link.setAttribute("href", href);
+    }
+
+    async function post(url, data) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data || {})
+      });
+      if (res.status === 401) {
+        location.href = "/login.html?terug=/leiding.html";
+        throw new Error("Niet ingelogd.");
+      }
+      const inhoud = await res.json();
+      if (!res.ok) throw new Error(inhoud.error || "Er ging iets mis.");
+      return inhoud;
+    }
+
+    async function doe(url, data) {
+      try { await post(url, data); } catch (e) { alert(e.message); }
+    }
+
+    // --- Klok (elke seconde) ---
+
+    function restTijd() {
+      const g = state.game;
+      if (g.status === "loopt") return g.eind - nuServer();
+      if (g.status === "pauze") return g.rest;
+      return 0;
+    }
+
+    function tekenKlok() {
+      if (!state) return;
+      const g = state.game, rest = restTijd(), klok = $("#klok");
+      klok.className = "klok";
+      if (g.status === "vrij") { $("#klokLabel").textContent = "BEURS"; $("#klokTijd").textContent = "OPEN"; }
+      else if (g.status === "loopt") {
+        $("#klokLabel").textContent = rest <= 300000 ? "SLOTFASE · NOG" : "SPEELTIJD · NOG";
+        $("#klokTijd").textContent = mmss(rest);
+        if (rest <= 300000) klok.classList.add("slot");
+      } else if (g.status === "pauze") {
+        $("#klokLabel").textContent = "GEPAUZEERD · NOG"; $("#klokTijd").textContent = mmss(rest); klok.classList.add("dicht");
+      } else { $("#klokLabel").textContent = "BEURS"; $("#klokTijd").textContent = "GESLOTEN"; klok.classList.add("dicht"); }
+
+      // Automatisch nieuws
+      const a = state.auto || {};
+      if (a.aan && a.volgende) {
+        const over = handelOpen() ? a.volgende - nuServer() : a.volgende - (state.serverNow || nuServer());
+        const slot = g.status === "loopt" && rest <= 300000;
+        $("#autoStatus").innerHTML = (handelOpen() ? `Volgend nieuws over ${mmss(over)}` : "Wacht tot de beurs open is") +
+          (slot ? ` · <span class="slotfase">SLOTFASE: dubbel tempo</span>` : "");
+        $("#klokInfo").textContent = handelOpen() ? `📰 nieuws over ${mmss(over)}` : "";
+      } else {
+        $("#autoStatus").textContent = "Loopt op de server door, ook als je telefoon op slot gaat.";
+        $("#klokInfo").textContent = "";
+      }
+
+      if ((state.tips || []).some((t) => t.plan && t.plan.status === "gepland")) tekenTips();
+    }
+    setInterval(tekenKlok, 1000);
+
+    // --- Speeltijd ---
+
+    function tekenSpeelKnoppen() {
+      const g = state.game;
+      const doel = $("#speelKnoppen");
+      const teksten = {
+        vrij: "De beurs is open zonder tijdslimiet.",
+        loopt: "De klok loopt. In de laatste 5 minuten komt automatisch nieuws twee keer zo vaak.",
+        pauze: "Gepauzeerd: niemand kan handelen, dividend, rente en tips staan stil.",
+        gesloten: "De beurs is gesloten. Er kan niet meer gehandeld worden."
+      };
+      $("#speelStatus").textContent = teksten[g.status];
+      if (doel.dataset.status === g.status) return; // invulveld niet wissen tijdens typen
+      doel.dataset.status = g.status;
+
+      const knop = (tekst, actie, klasse = "", min) =>
+        `<button type="button" class="${klasse}" data-actie="${actie}" ${min !== undefined ? `data-minuten="${min}"` : ""}>${tekst}</button>`;
+      if (g.status === "vrij" || g.status === "gesloten") {
+        doel.innerHTML = `
+          <div class="rij"><input type="number" id="speelMinuten" min="1" max="600" value="${(state.rules && state.rules.speelduur) || 60}" inputmode="numeric" aria-label="Minuten"><span class="status">minuten</span></div>
+          ${knop("▶ Start de klok", "start", "groot")}
+          ${g.status === "gesloten" ? knop("Beurs heropenen zonder klok", "heropen", "stil") : knop("■ Beurs nu sluiten", "stop", "gevaar")}`;
+      } else {
+        doel.innerHTML = `
+          ${g.status === "loopt" ? knop("⏸ Pauze", "pauze", "oranje groot") : knop("▶ Verder spelen", "hervat", "groot")}
+          <div class="tweeknop">${knop("+5 min", "verleng", "stil", 5)}${knop("−5 min", "verleng", "stil", -5)}</div>
+          ${knop("■ Beurs nu sluiten", "stop", "gevaar")}`;
+      }
+    }
+
+    $("#speelKnoppen").addEventListener("click", (e) => {
+      const knop = e.target.closest("[data-actie]");
+      if (!knop) return;
+      const actie = knop.dataset.actie;
+      if (actie === "stop" && !confirm("De beurs nu sluiten? Er kan dan niet meer gehandeld worden.")) return;
+      const data = { actie };
+      if (actie === "start") data.minuten = Number($("#speelMinuten").value);
+      if (knop.dataset.minuten) data.minuten = Number(knop.dataset.minuten);
+      doe("/api/game", data);
+    });
+
+    // --- Nieuws ---
+
+    $("#randomKnop").addEventListener("click", () => doe("/api/news/random"));
+    $("#krachKnop").addEventListener("click", () => { if (confirm("Beurskrach: alle aandelen dalen 15–30%. Doorgaan?")) doe("/api/news/markt", { type: "krach" }); });
+    $("#hausseKnop").addEventListener("click", () => { if (confirm("Hausse: alle aandelen stijgen 15–30%. Doorgaan?")) doe("/api/news/markt", { type: "hausse" }); });
+
+    function stuurAuto() {
+      let s = Math.round(Number($("#autoInterval").value));
+      if (!Number.isFinite(s) || s < 5) s = 5;
+      if (s > 3600) s = 3600;
+      $("#autoInterval").value = s;
+      doe("/api/auto", { aan: $("#autoAan").checked, interval: s });
+    }
+    $("#autoAan").addEventListener("change", stuurAuto);
+    $("#autoInterval").addEventListener("change", stuurAuto);
+
+    $("#eigenNieuws").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await post("/api/news/custom", {
+          titel: $("#nTitel").value, tekst: $("#nTekst").value, stock: $("#nAandeel").value, diff: $("#nDiff").value
+        });
+        event.target.reset();
+      } catch (e) { alert(e.message); }
+    });
+
+    // --- Tips ---
+
+    function actiefNu() {
+      const k = state.klok || { actief: 0 };
+      return k.actief + (handelOpen() && state.serverNow ? Math.max(0, nuServer() - state.serverNow) : 0);
+    }
+
+    function tekenTips() {
+      $("#tipLijst").innerHTML = (state.tips || []).slice(0, 6).map((t) => {
+        const p = t.plan;
+        let plan = "";
+        if (p) {
+          const effect = `${esc(p.stock)} ${p.procent > 0 ? "+" : ""}${p.procent}%`;
+          if (p.status === "gepland") {
+            plan = `<div class="gepland">⏳ ${effect} over ${mmss(p.bijActief - actiefNu())}${handelOpen() ? "" : " (staat stil)"}</div>
+              <div class="tipknoppen">
+                <button type="button" data-tip-nu="${t.id}">Nu laten gebeuren</button>
+                <button type="button" class="stil" data-tip-annuleer="${t.id}">Annuleren</button>
+              </div>`;
+          } else if (p.status === "uitgevoerd") plan = `<div class="klaar">✓ ${effect} gebeurd om ${tijd(p.uitgevoerdOp)}</div>`;
+          else plan = `<div class="weg">${effect} ${p.status}</div>`;
+        }
+        return `<div><b>${esc(t.group)}</b> · ${tijd(t.at)}<br>${esc(t.tekst)}${plan}</div>`;
+      }).join("");
+    }
+
+    $("#tipLijst").addEventListener("click", (e) => {
+      const nu = e.target.closest("[data-tip-nu]");
+      const weg = e.target.closest("[data-tip-annuleer]");
+      if (nu) doe("/api/tip/nu", { id: nu.dataset.tipNu });
+      if (weg) doe("/api/tip/annuleer", { id: weg.dataset.tipAnnuleer });
+    });
+
+    function werkTipVoorbeeldBij() {
+      const echt = $("#tipEcht").checked;
+      $("#tipPlan").hidden = !echt;
+      const procent = Math.round(Number($("#tipProcent").value)) || 0;
+      document.querySelectorAll("[data-tip-richting]").forEach((k) =>
+        k.classList.toggle("actief", Math.sign(procent) === Number(k.dataset.tipRichting)));
+      if (!echt) { $("#tipVoorbeeld").textContent = "Alleen een bericht: er verandert niets aan de koersen."; return; }
+      const m = Number($("#tipMinuten").value) || 0;
+      $("#tipVoorbeeld").textContent = procent
+        ? `Na ${m.toLocaleString("nl-NL")} ${m === 1 ? "minuut" : "minuten"} speeltijd ${procent > 0 ? "stijgt" : "daalt"} ${$("#tipAandeel").value} ${Math.abs(procent)}% en verschijnt er een nieuwsbericht.`
+        : "Kies een stijging of daling (niet 0%).";
+    }
+    ["#tipEcht", "#tipAandeel", "#tipProcent", "#tipMinuten"].forEach((sel) => {
+      $(sel).addEventListener("input", werkTipVoorbeeldBij);
+      $(sel).addEventListener("change", werkTipVoorbeeldBij);
+    });
+    document.querySelectorAll("[data-tip-richting]").forEach((knop) => knop.addEventListener("click", () => {
+      $("#tipProcent").value = Math.abs(Math.round(Number($("#tipProcent").value)) || 25) * Number(knop.dataset.tipRichting);
+      werkTipVoorbeeldBij();
+    }));
+
+    $("#tipForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = { groep: Number($("#tipGroep").value), tekst: $("#tipTekst").value };
+      if ($("#tipEcht").checked) {
+        data.plan = { stock: $("#tipAandeel").value, procent: Number($("#tipProcent").value), minuten: Number($("#tipMinuten").value) };
+      } else if (!data.tekst.trim()) {
+        alert("Schrijf een tiptekst, of vink 'Laat het ook echt gebeuren' aan voor een automatische tekst.");
+        return;
+      }
+      try { await post("/api/tip", data); $("#tipTekst").value = ""; } catch (e) { alert(e.message); }
+    });
+
+    // --- Groot scherm ---
+
+    $("#eindeKnop").addEventListener("click", () => doe("/api/scherm", { einde: !(state.scherm && state.scherm.einde) }));
+    $("#resetKnop").addEventListener("click", () => {
+      if (confirm("Weet je het zeker? Alle koersen, kasgeld, aandelen en transacties gaan terug naar het begin.")) doe("/api/reset");
+    });
+
+    // --- Keuzelijsten bijwerken zonder de keuze kwijt te raken ---
+
+    function vulKeuze(select, opties) {
+      const huidig = select.value;
+      select.innerHTML = "";
+      opties.forEach(([waarde, tekst]) => select.add(new Option(tekst, waarde)));
+      if (opties.some(([w]) => String(w) === huidig)) select.value = huidig;
+    }
+
+    // --- Alles tekenen ---
+
+    function render(nieuw) {
+      state = nieuw;
+      zetThema(state.thema);
+      if (state.serverNow) klokVerschil = state.serverNow - Date.now();
+      aandelen = state.posts;
+
+      tekenSpeelKnoppen();
+
+      // Automatisch nieuws: vinkje en seconden volgen de server (niet terwijl je typt)
+      const a = state.auto || {};
+      $("#autoAan").checked = !!a.aan;
+      if (document.activeElement !== $("#autoInterval")) $("#autoInterval").value = a.interval || 180;
+
+      const open = handelOpen();
+      ["#randomKnop", "#krachKnop", "#hausseKnop"].forEach((s) => { $(s).disabled = !open; });
+      $("#eigenNieuws button").disabled = !open;
+
+      vulKeuze($("#nAandeel"), aandelen.map((x) => [x, x]));
+      vulKeuze($("#tipAandeel"), aandelen.map((x) => [x, x]));
+      vulKeuze($("#tipGroep"), state.groups.map((g) => [g.id, g.name]));
+      werkTipVoorbeeldBij();
+      tekenTips();
+
+      const einde = state.scherm && state.scherm.einde;
+      $("#eindeKnop").textContent = einde ? "Eindscherm verbergen" : "🏆 Eindscherm tonen";
+      $("#schermStatus").textContent = einde
+        ? "Het grote scherm toont nu het eindscherm met podium."
+        : "Het grote scherm toont de koersen. Bij sluiten van de beurs komt het eindscherm vanzelf.";
+
+      // Tussenstand: kasgeld + aandelen − lening
+      const lijst = state.groups.map((g) => ({
+        ...g,
+        totaal: g.cash - (g.loan || 0) + aandelen.reduce((s, x) => s + (g.shares[x] || 0) * state.prices[x], 0)
+      })).sort((x, y) => y.totaal - x.totaal);
+      $("#stand").innerHTML = lijst.map((g, i) =>
+        `<tr class="${i === 0 ? "eerste" : ""}"><td>${i + 1}.</td><td>${esc(g.name)}</td><td class="num">${euro(g.totaal)}</td></tr>`).join("");
+
+      $("#koersen").innerHTML = aandelen.map((x) => {
+        const d = state.prices[x] - state.previous[x];
+        return `<div class="koers"><small>${esc(x)}</small><b>${euro(state.prices[x])}</b>
+          ${d ? `<span class="${d > 0 ? "up" : "down"}"> ${d > 0 ? "▲+" : "▼"}${d}</span>` : ""}</div>`;
+      }).join("");
+
+      tekenKlok();
+    }
+
+    // --- Live verbinding ---
+
+    const live = new EventSource("/api/events");
+    live.onopen = () => { $("#verbinding").textContent = "● Live"; $("#verbinding").className = "verbinding"; };
+    live.onerror = () => {
+      $("#verbinding").textContent = "● Geen verbinding";
+      $("#verbinding").className = "verbinding weg";
+      fetch("/api/me").then((r) => { if (r.status === 401) location.href = "/login.html?terug=/leiding.html"; }).catch(() => {});
+    };
+    live.onmessage = (event) => render(JSON.parse(event.data));
+  </script>
+</body>
+</html>

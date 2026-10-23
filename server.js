@@ -372,7 +372,11 @@ function nieuwSpel(bron = "reset") {
     // Speeltijd. status: "vrij" (geen klok, handel open), "loopt", "pauze" of "gesloten"
     game: { status: "vrij", eind: null, rest: null },
     // Tijd (ms) dat er actief gespeeld is, voor dividend en rente
-    klok: { actief: 0, laatsteDividend: 0, laatsteRente: 0 }
+    klok: { actief: 0, laatsteDividend: 0, laatsteRente: 0 },
+    // Automatisch nieuws draait op de server, zodat het doorloopt als de telefoon van de leiding op slot gaat
+    auto: { aan: false, interval: 180, volgende: null },
+    // Wat het grote scherm toont (de leiding kan het eindscherm op afstand aan- en uitzetten)
+    scherm: { einde: false }
   };
   state.spelId = crypto.randomBytes(6).toString("hex");
   state.bron = bron;
@@ -443,6 +447,12 @@ function schoonSpelstand(st) {
       laatsteDividend: getal(st.klok && st.klok.laatsteDividend),
       laatsteRente: getal(st.klok && st.klok.laatsteRente)
     },
+    auto: {
+      aan: !!(st.auto && st.auto.aan),
+      interval: Math.min(3600, Math.max(5, Math.round(getal(st.auto && st.auto.interval, 180)))),
+      volgende: st.auto && st.auto.volgende ? getal(st.auto.volgende) : null
+    },
+    scherm: { einde: !!(st.scherm && st.scherm.einde) },
     spelId: String(st.spelId || crypto.randomBytes(6).toString("hex")),
     bron: "hersteld"
   };
@@ -552,6 +562,33 @@ function rekenRente() {
   return iemand;
 }
 
+// Een willekeurig nieuwsbericht uit de lijst laten verschijnen en de koersen aanpassen
+function willekeurigNieuws() {
+  const item = kiesNieuws();
+  state.previous = { ...state.prices };
+  const changes = Object.entries(item.effect).map(([aandeel, [van, tot]]) => {
+    const oud = state.prices[aandeel];
+    // Procentuele verandering, minstens € 1 omhoog of omlaag
+    const procent = randomGetal(van, tot);
+    let verschil = Math.round((oud * procent) / 100);
+    if (verschil === 0) verschil = procent > 0 ? 1 : -1;
+    state.prices[aandeel] = begrens(oud + verschil);
+    return { stock: aandeel, diff: state.prices[aandeel] - oud };
+  });
+  voegNieuwsToe(item.titel, item.tekst, changes);
+}
+
+// In de slotfase (laatste 5 minuten) komt automatisch nieuws twee keer zo vaak
+function inSlotfase(nu) {
+  return state.game.status === "loopt" && state.game.eind - nu <= 300000;
+}
+
+function planAutoNieuws(nu) {
+  const a = state.auto;
+  const seconden = inSlotfase(nu) ? Math.max(5, Math.round(a.interval / 2)) : a.interval;
+  a.volgende = nu + seconden * 1000;
+}
+
 // Een geplande tip laten uitkomen: de koers verandert en er verschijnt een nieuwsbericht
 function voerTipUit(tip) {
   const p = tip.plan;
@@ -576,6 +613,7 @@ setInterval(() => {
 
   if (state.game.status === "loopt" && nu >= state.game.eind) {
     state.game = { status: "gesloten", eind: null, rest: null };
+    state.scherm = { einde: true };
     voegNieuwsToe("De beurs is gesloten!", "De tijd is om. Bekijk de eindstand op het grote scherm.", []);
     veranderd = true;
   }
@@ -594,6 +632,21 @@ setInterval(() => {
       veranderd = rekenRente() || veranderd;
     }
 
+    // Automatisch nieuws
+    const a = state.auto;
+    if (a.aan) {
+      if (!a.volgende) planAutoNieuws(nu);
+      // Net in de slotfase gekomen? Dan meteen het snellere tempo aanhouden
+      const slotNu = inSlotfase(nu);
+      if (slotNu && !a.slot) a.volgende = Math.min(a.volgende, nu + Math.max(5, Math.round(a.interval / 2)) * 1000);
+      a.slot = slotNu;
+      if (nu >= a.volgende) {
+        willekeurigNieuws();
+        planAutoNieuws(nu);
+        veranderd = true;
+      }
+    }
+
     // Geplande tips laten uitkomen
     tips.forEach((tip) => {
       if (tip.plan && tip.plan.status === "gepland" && k.actief >= tip.plan.bijActief) {
@@ -602,6 +655,8 @@ setInterval(() => {
       }
     });
   }
+
+  if (!handelOpen() && state.auto.aan && state.auto.volgende) state.auto.volgende += verstreken;
 
   if (veranderd) stuurUpdate();
 }, 1000);
@@ -826,10 +881,11 @@ function ipVan(req) {
 // Welke pagina's wie mag zien
 const paginaRechten = {
   "/index.html": ["beurs", "post"],
-  "/groep.html": ["beurs", "post", "speler"],
+  "/groep.html": ["beurs", "speler"],
   "/post.html": ["beurs", "post"],
   "/beurs.html": ["beurs"],
-  "/instellingen.html": ["beurs"]
+  "/instellingen.html": ["beurs"],
+  "/leiding.html": ["beurs"]
 };
 
 const types = {
@@ -922,7 +978,8 @@ const server = http.createServer(async (req, res) => {
 
       const alleenBeurs =
         url.startsWith("/api/news/") || url === "/api/reset" || url === "/api/settings" ||
-        url === "/api/game" || url.startsWith("/api/tip") || url === "/api/backup" || url === "/api/herstel";
+        url === "/api/game" || url.startsWith("/api/tip") || url === "/api/backup" || url === "/api/herstel" ||
+        url === "/api/auto" || url === "/api/scherm";
       if (alleenBeurs && rol !== "beurs") {
         return json(res, 403, { error: "Alleen de beursleiding mag dit doen." });
       }
@@ -933,6 +990,7 @@ const server = http.createServer(async (req, res) => {
 
       // Leden mogen alleen hun eigen groep live volgen, verder niets
       if (url === "/api/speler/events") {
+        if (rol === "post") return json(res, 403, { error: "Met het postwachtwoord kun je de ledenpagina niet openen." });
         const groepId = Number(new URL(req.url, "http://x").searchParams.get("groep")) || null;
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
@@ -976,20 +1034,30 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url === "/api/news/random") {
-      const item = kiesNieuws();
-      state.previous = { ...state.prices };
+      willekeurigNieuws();
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
 
-      const changes = Object.entries(item.effect).map(([aandeel, [van, tot]]) => {
-        const oud = state.prices[aandeel];
-        // Procentuele verandering, minstens € 1 omhoog of omlaag
-        const procent = randomGetal(van, tot);
-        let verschil = Math.round((oud * procent) / 100);
-        if (verschil === 0) verschil = procent > 0 ? 1 : -1;
-        state.prices[aandeel] = begrens(oud + verschil);
-        return { stock: aandeel, diff: state.prices[aandeel] - oud };
-      });
+    // Automatisch nieuws aan/uit en het aantal seconden ertussen
+    if (req.method === "POST" && url === "/api/auto") {
+      const body = await leesBody(req);
+      const interval = Math.round(Number(body.interval));
+      if (!(interval >= 5 && interval <= 3600)) return json(res, 400, { error: "Kies tussen 5 en 3600 seconden." });
+      const was = state.auto.aan;
+      state.auto.aan = !!body.aan;
+      state.auto.interval = interval;
+      // Bij aanzetten of een ander interval: de aftelling opnieuw beginnen
+      if (state.auto.aan && (!was || body.herstart !== false)) planAutoNieuws(Date.now());
+      if (!state.auto.aan) state.auto.volgende = null;
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
 
-      voegNieuwsToe(item.titel, item.tekst, changes);
+    // Eindscherm op het grote scherm tonen of verbergen
+    if (req.method === "POST" && url === "/api/scherm") {
+      const body = await leesBody(req);
+      state.scherm = { einde: !!body.einde };
       stuurUpdate();
       return json(res, 200, { ok: true });
     }
@@ -1106,6 +1174,7 @@ const server = http.createServer(async (req, res) => {
       if (body.actie === "start") {
         if (!(minuten >= 1 && minuten <= 600)) return json(res, 400, { error: "Kies een speeltijd tussen 1 en 600 minuten." });
         state.game = { status: "loopt", eind: nu + minuten * 60000, rest: null };
+        state.scherm = { einde: false };
         voegNieuwsToe("De beurs is geopend!", `Er wordt ${minuten} minuten gehandeld. Succes!`, []);
       } else if (body.actie === "pauze" && g.status === "loopt") {
         state.game = { status: "pauze", eind: null, rest: Math.max(0, g.eind - nu) };
@@ -1119,9 +1188,11 @@ const server = http.createServer(async (req, res) => {
         else g.rest = Math.max(1000, g.rest + minuten * 60000);
       } else if (body.actie === "stop") {
         state.game = { status: "gesloten", eind: null, rest: null };
+        state.scherm = { einde: true };
         voegNieuwsToe("De beurs is gesloten!", "De handel is gestopt. Bekijk de eindstand op het grote scherm.", []);
       } else if (body.actie === "heropen") {
         state.game = { status: "vrij", eind: null, rest: null };
+        state.scherm = { einde: false };
         voegNieuwsToe("De beurs is weer open", "Er kan weer gehandeld worden (zonder tijdslimiet).", []);
       } else {
         return json(res, 400, { error: "Dat kan nu niet." });

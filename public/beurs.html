@@ -287,6 +287,15 @@
     @media (max-width: 900px) {
       .prices { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* Kijkscherm: grafiek + tussenstand boven, nieuws + transacties onder */
+    .scherm-boven { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .scherm-onder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 20px; }
+    .scherm-boven > *, .scherm-onder > *, .grafiek-vak { min-width: 0; }
+    .scherm-boven .panel, .scherm-onder .panel { margin-top: 0; }
+    @media (max-width: 1100px) {
+      .scherm-boven, .scherm-onder { grid-template-columns: 1fr; }
+    }
   </style>
   <link id="thema" rel="stylesheet" href="/thema.css">
 </head>
@@ -314,8 +323,7 @@
 
     <section class="prices" id="prices"></section>
 
-    <section class="layout">
-      <div class="hoofd">
+    <section class="scherm-boven">
         <div class="panel grafiek">
           <div class="grafiek-kop">
             <div class="tag">KOERSVERLOOP</div>
@@ -330,7 +338,6 @@
           <div class="legenda" id="legenda"></div>
         </div>
 
-        <div class="duo">
         <div class="panel">
           <div class="tag">TUSSENSTAND</div>
           <table>
@@ -340,97 +347,21 @@
             <tbody id="ranking"></tbody>
           </table>
           <p class="status" style="margin-top:10px">+/− = winst of verlies op aandelen. Totaal = kasgeld + aandelen − lening.</p>
-          <button type="button" class="stil" id="toonEinde" style="margin-top:12px">🏆 Toon eindscherm</button>
         </div>
-        <div class="panel">
-          <h2>Speeltijd</h2>
-          <p class="status" id="speelStatus"></p>
-          <div class="blok" id="speelKnoppen"></div>
-        </div>
-        </div>
+    </section>
 
+    <section class="scherm-onder">
         <div class="panel">
           <div class="tag">NIEUWS</div>
           <div class="news-feed" id="newsFeed"></div>
 
-          <div class="transactions">
+        </div>
+        <div class="panel">
+          <div class="transactions" style="margin-top:0">
             <div class="tag">LAATSTE TRANSACTIES</div>
             <div id="transactions">Nog geen transacties.</div>
           </div>
         </div>
-      </div>
-
-      <aside class="zijkolom">
-        <div class="panel">
-          <h2>Beursleiding</h2>
-
-          <button id="randomButton">Willekeurig nieuws</button>
-
-          <div class="auto">
-            <label class="auto-aan">
-              <input type="checkbox" id="autoNieuws">
-              Automatisch nieuws elke
-            </label>
-            <input type="number" id="autoInterval" min="5" max="3600" step="1" value="180" inputmode="numeric" aria-label="Aantal seconden">
-            seconden
-          </div>
-          <div class="status" id="autoStatus"></div>
-
-          <div class="blok">
-            <div class="tag">HELE BEURS</div>
-            <div class="tweeknop">
-              <button type="button" class="krach" id="krachKnop">📉 Beurskrach</button>
-              <button type="button" class="hausse" id="hausseKnop">📈 Hausse</button>
-            </div>
-          </div>
-
-          <form id="eigenNieuws">
-            <div class="tag">EIGEN NIEUWSBERICHT</div>
-            <input id="nTitel" placeholder="Kop, bijv. 'Kapotte peddel gevonden'" maxlength="100" required>
-            <input id="nTekst" placeholder="Toelichting (optioneel)" maxlength="300">
-            <div class="rij">
-              <select id="nAandeel"></select>
-              <input id="nDiff" type="number" placeholder="+/- €" required>
-            </div>
-            <button type="submit">Plaats nieuws</button>
-          </form>
-
-          <form id="tipForm">
-            <div class="tag">GEHEIME TIP</div>
-            <p class="status">Alleen te zien op de ledenpagina van die ene groep.</p>
-            <select id="tipGroep"></select>
-
-            <label class="auto-aan tip-echt">
-              <input type="checkbox" id="tipEcht" checked>
-              Laat het ook echt gebeuren
-            </label>
-            <div class="tip-plan" id="tipPlan">
-              <select id="tipAandeel" aria-label="Aandeel"></select>
-              <div class="tip-rij">
-                <label>Verandering %<input id="tipProcent" type="number" step="1" value="25" inputmode="numeric"></label>
-                <label>Na minuten<input id="tipMinuten" type="number" step="0.5" min="0.5" max="120" value="5" inputmode="decimal"></label>
-              </div>
-              <div class="tweeknop tip-snel">
-                <button type="button" class="stil" data-tip-richting="1">📈 Stijgt</button>
-                <button type="button" class="stil" data-tip-richting="-1">📉 Daalt</button>
-              </div>
-            </div>
-
-            <input id="tipTekst" placeholder="Tiptekst (leeg = automatisch)" maxlength="200">
-            <p class="status" id="tipVoorbeeld"></p>
-            <button type="submit">🤫 Stuur tip</button>
-            <div class="tiplijst" id="tipLijst"></div>
-          </form>
-
-          <a class="knoplink" href="/instellingen.html">⚙ Spelinstellingen</a>
-
-          <button class="danger" id="resetButton">Reset spel</button>
-
-          <p class="status" style="margin-top:14px">
-            Alles staat op de server en wordt ook op deze computer bewaard. Herladen is veilig.
-          </p>
-        </div>
-      </aside>
     </section>
   </div>
 
@@ -443,10 +374,6 @@
       <p class="ondertitel" id="eindTekst"></p>
       <div class="podium" id="podium"></div>
       <table class="rest"><tbody id="eindLijst"></tbody></table>
-      <div class="einde-knoppen">
-        <button type="button" id="meerConfetti">🎉 Meer confetti</button>
-        <button type="button" class="stil" id="sluitEinde">Terug naar de beurs</button>
-      </div>
     </div>
   </div>
 
@@ -747,171 +674,6 @@
       }
     }
 
-    function renderSpeelKnoppen() {
-      const g = state.game;
-      const doel = $("#speelKnoppen");
-      const standaard = (state.rules && state.rules.speelduur) || 60;
-      const knop = (tekst, actie, klasse = "", extra = {}) =>
-        `<button type="button" class="${klasse}" data-actie="${actie}" ${extra.minuten !== undefined ? `data-minuten="${extra.minuten}"` : ""}>${tekst}</button>`;
-
-      const teksten = {
-        vrij: "De beurs is open zonder tijdslimiet. Start de klok om een speeltijd te kiezen.",
-        loopt: "De klok loopt. In de laatste 5 minuten komt automatisch nieuws twee keer zo vaak.",
-        pauze: "Gepauzeerd: niemand kan handelen en dividend en rente staan stil.",
-        gesloten: "De beurs is gesloten. Er kan niet meer gehandeld worden."
-      };
-      $("#speelStatus").textContent = teksten[g.status];
-
-      // Het invulveld niet opnieuw tekenen als het al bestaat (anders verlies je je invoer)
-      const sleutel = g.status;
-      if (doel.dataset.status === sleutel) return;
-      doel.dataset.status = sleutel;
-
-      if (g.status === "vrij" || g.status === "gesloten") {
-        doel.innerHTML = `
-          <div class="rij"><input type="number" id="speelMinuten" min="1" max="600" value="${standaard}" aria-label="Minuten"><span class="status" style="align-self:center">minuten</span></div>
-          ${knop("▶ Start de klok", "start")}
-          ${g.status === "gesloten" ? knop("Beurs heropenen zonder klok", "heropen", "stil") : knop("■ Beurs nu sluiten", "stop", "danger")}`;
-      } else {
-        doel.innerHTML = `
-          ${g.status === "loopt" ? knop("⏸ Pauze", "pauze", "oranje") : knop("▶ Verder spelen", "hervat")}
-          <div class="tweeknop">${knop("+5 minuten", "verleng", "stil", { minuten: 5 })}${knop("−5 minuten", "verleng", "stil", { minuten: -5 })}</div>
-          ${knop("■ Beurs nu sluiten", "stop", "danger")}`;
-      }
-    }
-
-    $("#speelKnoppen").addEventListener("click", async (e) => {
-      const knop = e.target.closest("[data-actie]");
-      if (!knop) return;
-      const actie = knop.dataset.actie;
-      if (actie === "stop" && !confirm("De beurs nu sluiten? Er kan dan niet meer gehandeld worden.")) return;
-      const data = { actie };
-      if (actie === "start") data.minuten = Number($("#speelMinuten").value);
-      if (knop.dataset.minuten) data.minuten = Number(knop.dataset.minuten);
-      try {
-        await post("/api/game", data);
-      } catch (fout) {
-        alert(fout.message);
-      }
-    });
-
-    // --- Tips ---
-
-    // Actieve speeltijd zoals de server die bijhoudt (staat stil tijdens pauze en na sluiting)
-    function actiefNu() {
-      const k = state.klok || { actief: 0 };
-      const extra = handelOpen() && state.serverNow ? Math.max(0, Date.now() + klokVerschil - state.serverNow) : 0;
-      return k.actief + extra;
-    }
-
-    function tipRegel(t) {
-      const p = t.plan;
-      let plan = "";
-      if (p) {
-        const effect = `${esc(p.stock)} ${p.procent > 0 ? "+" : ""}${p.procent}%`;
-        if (p.status === "gepland") {
-          const rest = p.bijActief - actiefNu();
-          plan = `<div class="gepland">⏳ ${effect} over ${mmss(rest)}${handelOpen() ? "" : " (klok staat stil)"}</div>
-            <div class="tipknoppen">
-              <button type="button" class="stil" data-tip-nu="${t.id}">Nu laten gebeuren</button>
-              <button type="button" class="stil" data-tip-annuleer="${t.id}">Annuleren</button>
-            </div>`;
-        } else if (p.status === "uitgevoerd") {
-          plan = `<div class="klaar">✓ ${effect} is gebeurd om ${tijd(p.uitgevoerdOp)}</div>`;
-        } else {
-          plan = `<div class="weg">${effect} ${p.status === "geannuleerd" ? "geannuleerd" : "vervallen"}</div>`;
-        }
-      }
-      return `<div><b>${esc(t.group)}</b> · ${tijd(t.at)}<br>${esc(t.tekst)}${plan}</div>`;
-    }
-
-    function renderTips() {
-      const keuze = $("#tipGroep");
-      const huidig = keuze.value;
-      keuze.innerHTML = "";
-      state.groups.forEach((g) => keuze.add(new Option(g.name, g.id)));
-      if (huidig && state.groups.some((g) => String(g.id) === huidig)) keuze.value = huidig;
-
-      const aandeel = $("#tipAandeel");
-      const huidigAandeel = aandeel.value;
-      aandeel.innerHTML = "";
-      aandelen.forEach((a) => aandeel.add(new Option(a, a)));
-      if (aandelen.includes(huidigAandeel)) aandeel.value = huidigAandeel;
-
-      $("#tipLijst").innerHTML = (state.tips || []).slice(0, 6).map(tipRegel).join("");
-      werkTipVoorbeeldBij();
-    }
-
-    // Aftellen van geplande tips elke seconde bijwerken
-    setInterval(() => {
-      if (state && (state.tips || []).some((t) => t.plan && t.plan.status === "gepland")) {
-        $("#tipLijst").innerHTML = state.tips.slice(0, 6).map(tipRegel).join("");
-      }
-    }, 1000);
-
-    function werkTipVoorbeeldBij() {
-      const echt = $("#tipEcht").checked;
-      $("#tipPlan").hidden = !echt;
-      const procent = Math.round(Number($("#tipProcent").value)) || 0;
-      document.querySelectorAll("[data-tip-richting]").forEach((k) => {
-        k.classList.toggle("actief", Math.sign(procent) === Number(k.dataset.tipRichting));
-      });
-      if (!echt) {
-        $("#tipVoorbeeld").textContent = "Alleen een bericht: er verandert niets aan de koersen.";
-        return;
-      }
-      const a = $("#tipAandeel").value;
-      const m = Number($("#tipMinuten").value) || 0;
-      $("#tipVoorbeeld").textContent = procent
-        ? `Na ${m.toLocaleString("nl-NL")} ${m === 1 ? "minuut" : "minuten"} speeltijd ${procent > 0 ? "stijgt" : "daalt"} ${a} ${Math.abs(procent)}% en verschijnt er een nieuwsbericht.`
-        : "Kies een stijging of daling (niet 0%).";
-    }
-
-    ["#tipEcht", "#tipAandeel", "#tipProcent", "#tipMinuten"].forEach((sel) => {
-      $(sel).addEventListener("input", werkTipVoorbeeldBij);
-      $(sel).addEventListener("change", werkTipVoorbeeldBij);
-    });
-
-    document.querySelectorAll("[data-tip-richting]").forEach((knop) => {
-      knop.addEventListener("click", () => {
-        const p = Math.abs(Math.round(Number($("#tipProcent").value)) || 25);
-        $("#tipProcent").value = p * Number(knop.dataset.tipRichting);
-        werkTipVoorbeeldBij();
-      });
-    });
-
-    $("#tipLijst").addEventListener("click", async (e) => {
-      const annuleer = e.target.closest("[data-tip-annuleer]");
-      const nu = e.target.closest("[data-tip-nu]");
-      try {
-        if (annuleer) await post("/api/tip/annuleer", { id: annuleer.dataset.tipAnnuleer });
-        if (nu) await post("/api/tip/nu", { id: nu.dataset.tipNu });
-      } catch (fout) {
-        alert(fout.message);
-      }
-    });
-
-    $("#tipForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = { groep: Number($("#tipGroep").value), tekst: $("#tipTekst").value };
-      if ($("#tipEcht").checked) {
-        data.plan = {
-          stock: $("#tipAandeel").value,
-          procent: Number($("#tipProcent").value),
-          minuten: Number($("#tipMinuten").value)
-        };
-      } else if (!data.tekst.trim()) {
-        alert("Schrijf een tiptekst, of vink 'Laat het ook echt gebeuren' aan voor een automatische tekst.");
-        return;
-      }
-      try {
-        await post("/api/tip", data);
-        $("#tipTekst").value = "";
-      } catch (e) {
-        alert(e.message);
-      }
-    });
-
     // --- Eindscherm ---
 
     function toonEindscherm() {
@@ -936,11 +698,16 @@
       confetti();
     }
 
-    $("#toonEinde").addEventListener("click", toonEindscherm);
-    $("#sluitEinde").addEventListener("click", () => { $("#einde").hidden = true; });
-    $("#meerConfetti").addEventListener("click", confetti);
+    // Eindscherm bijwerken zonder opnieuw confetti (bijv. als er nog iets verandert)
+    function werkEindschermBij() {
+      const confettiWas = confetti;
+      confetti = () => {};
+      toonEindscherm();
+      confetti = confettiWas;
+    }
 
-    function confetti() {
+
+    let confetti = function () {
       const canvas = $("#confetti");
       const ctx = canvas.getContext("2d");
       canvas.width = innerWidth;
@@ -974,13 +741,6 @@
 
     // --- Alles tekenen ---
 
-    function renderPostKeuze() {
-      const huidig = nAandeel.value;
-      nAandeel.innerHTML = "";
-      aandelen.forEach((a) => nAandeel.add(new Option(a, a)));
-      if (aandelen.includes(huidig)) nAandeel.value = huidig;
-    }
-
     function zetThema(t) {
       const link = document.getElementById("thema");
       const href = "/thema.css?thema=" + encodeURIComponent(t);
@@ -991,26 +751,20 @@
       state = nieuw;
       zetThema(state.thema);
       if (state.serverNow) klokVerschil = state.serverNow - Date.now();
-      const postenVeranderd = state.posts.join("|") !== aandelen.join("|");
       aandelen = state.posts;
-      if (postenVeranderd) renderPostKeuze();
 
       renderKoersen();
       renderGrafiek();
       renderNieuws();
       renderTransacties();
       renderRanking();
-      renderSpeelKnoppen();
-      renderTips();
       tekenSpeelklok();
 
-      const open = handelOpen();
-      ["#randomButton", "#krachKnop", "#hausseKnop"].forEach((s) => { $(s).disabled = !open; });
-      document.querySelector("#eigenNieuws button").disabled = !open;
-
-      // Automatisch eindscherm zodra de beurs sluit
-      if (vorigeStatus && vorigeStatus !== "gesloten" && state.game.status === "gesloten") toonEindscherm();
-      vorigeStatus = state.game.status;
+      // Het eindscherm wordt bediend vanaf de bedieningspagina (en komt vanzelf als de beurs sluit)
+      const einde = !!(state.scherm && state.scherm.einde);
+      if (einde && $("#einde").hidden) toonEindscherm();
+      else if (einde) werkEindschermBij();
+      else $("#einde").hidden = true;
 
       bewaarKopie();
       controleerHerstel();
@@ -1030,125 +784,6 @@
       if (!res.ok) throw new Error(inhoud.error || "Er ging iets mis.");
       return inhoud;
     }
-
-    // --- Knoppen ---
-
-    const randomButton = $("#randomButton");
-
-    async function willekeurigNieuws() {
-      if (!handelOpen()) return;
-      randomButton.disabled = true;
-      try {
-        await post("/api/news/random");
-      } catch (e) {
-        if (!autoTimer) alert(e.message);
-      } finally {
-        randomButton.disabled = !handelOpen();
-      }
-    }
-
-    randomButton.addEventListener("click", willekeurigNieuws);
-
-    $("#krachKnop").addEventListener("click", async () => {
-      if (!confirm("Beurskrach: alle aandelen dalen 15–30%. Doorgaan?")) return;
-      try { await post("/api/news/markt", { type: "krach" }); } catch (e) { alert(e.message); }
-    });
-    $("#hausseKnop").addEventListener("click", async () => {
-      if (!confirm("Hausse: alle aandelen stijgen 15–30%. Doorgaan?")) return;
-      try { await post("/api/news/markt", { type: "hausse" }); } catch (e) { alert(e.message); }
-    });
-
-    $("#resetButton").addEventListener("click", async () => {
-      if (!confirm("Weet je het zeker? Alle koersen, kasgeld, aandelen en transacties gaan terug naar het begin.")) return;
-      try {
-        await post("/api/reset");
-        laatsteKoersen = null;
-      } catch (e) {
-        alert(e.message);
-      }
-    });
-
-    const nAandeel = $("#nAandeel");
-
-    $("#eigenNieuws").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      try {
-        await post("/api/news/custom", {
-          titel: $("#nTitel").value,
-          tekst: $("#nTekst").value,
-          stock: nAandeel.value,
-          diff: $("#nDiff").value
-        });
-        event.target.reset();
-      } catch (e) {
-        alert(e.message);
-      }
-    });
-
-    // --- Automatisch nieuws ---
-
-    let autoTimer = null;
-    let volgendeOm = 0;
-    const autoStatus = $("#autoStatus");
-    const intervalInput = $("#autoInterval");
-
-    try {
-      const bewaard = localStorage.getItem("mm_interval");
-      if (bewaard) intervalInput.value = bewaard;
-    } catch {}
-
-    function intervalSeconden() {
-      let s = Math.round(Number(intervalInput.value));
-      if (!Number.isFinite(s) || s < 5) s = 5;
-      if (s > 3600) s = 3600;
-      return s;
-    }
-
-    // In de slotfase (laatste 5 minuten) komt het nieuws twee keer zo vaak
-    function slotfase() {
-      return state && state.game.status === "loopt" && restTijd() <= 300000;
-    }
-
-    function planVolgende() {
-      const s = slotfase() ? Math.max(5, Math.round(intervalSeconden() / 2)) : intervalSeconden();
-      volgendeOm = Date.now() + s * 1000;
-    }
-
-    let wasSlotfase = false;
-    $("#autoNieuws").addEventListener("change", (e) => {
-      if (e.target.checked) {
-        planVolgende();
-        autoTimer = setInterval(() => {
-          if (!handelOpen()) {
-            autoStatus.textContent = "Automatisch nieuws wacht tot de beurs open is.";
-            planVolgende();
-            return;
-          }
-          // Net in de slotfase gekomen? Dan meteen het kortere tempo aanhouden
-          const nuSlot = slotfase();
-          if (nuSlot && !wasSlotfase) planVolgende();
-          wasSlotfase = nuSlot;
-
-          if (Date.now() >= volgendeOm) {
-            willekeurigNieuws();
-            planVolgende();
-          }
-          const over = Math.max(0, Math.round((volgendeOm - Date.now()) / 1000));
-          autoStatus.innerHTML = `Volgend nieuws over ${Math.floor(over / 60)}:${String(over % 60).padStart(2, "0")}` +
-            (nuSlot ? ` · <span class="slotfase">SLOTFASE: dubbel tempo</span>` : "");
-        }, 1000);
-      } else {
-        clearInterval(autoTimer);
-        autoTimer = null;
-        autoStatus.textContent = "";
-      }
-    });
-
-    intervalInput.addEventListener("change", () => {
-      intervalInput.value = intervalSeconden();
-      try { localStorage.setItem("mm_interval", intervalInput.value); } catch {}
-      if (autoTimer) planVolgende();
-    });
 
     // --- Reservekopie op deze computer ---
     // Na elke wijziging (hooguit elke 10 seconden) wordt de volledige spelstand

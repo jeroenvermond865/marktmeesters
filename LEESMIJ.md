@@ -26,9 +26,9 @@ Er zijn twee wachtwoorden:
 
 | Wie | Mag | Standaard (alleen lokaal!) |
 |---|---|---|
-| Beursleiding | alles: nieuws, reset, beurs-scherm, posten | `beurs123` |
-| Posten | transacties invoeren en standen bekijken | `post123` |
-| Leden | alleen het saldo van de eigen groep bekijken | `speler123` |
+| Beursleiding | alles: groot scherm, bediening, instellingen, posten en ledenpagina | `beurs123` |
+| Posten | alleen de post-pagina's | `post123` |
+| Leden | alleen de ledenpagina (eigen groep) | `speler123` |
 
 Inloggen blijft 7 dagen bewaard op dat apparaat. Uitloggen kan onderaan de startpagina.
 
@@ -79,7 +79,15 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
 
 Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naam`). Kies de post dan opnieuw via de startpagina.
 
-## Beursleiding
+## Groot scherm en bediening
+
+- **`/beurs.html` – groot scherm** (beamer/tv): koersen, grafiek, tussenstand, nieuws, transacties en de aftelklok. Er staan geen knoppen op.
+- **`/leiding.html` – bediening** (op je telefoon): alle knoppen van de beursleiding.
+
+Automatisch nieuws en geplande tips lopen op de server, dus ook als je telefoon op slot gaat.
+Het eindscherm verschijnt vanzelf als de beurs sluit; je kunt het ook vanaf de bediening tonen of verbergen.
+
+## Bediening (beursleiding)
 
 - **Speeltijd**: kies het aantal minuten en klik op *Start de klok*. Je kunt pauzeren, verlengen (+5/−5 min) en de beurs sluiten.
   In de laatste 5 minuten (slotfase) komt automatisch nieuws twee keer zo vaak. Bij 0:00 sluit de beurs en verschijnt het **eindscherm met podium**.
