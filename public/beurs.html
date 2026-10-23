@@ -148,10 +148,6 @@
     /* Grafiek: vaste y-as links, de rest scrollt zijwaarts */
     .grafiek-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     .grafiek-vak { display: flex; margin-top: 8px; }
-    .grafiek-tabs { display: flex; gap: 18px; flex-wrap: wrap; }
-    .grafiek-tabs button { width: auto; padding: 0 0 4px; background: none; border: 0; border-radius: 0; color: var(--muted); opacity: .6; font-size: 16px; }
-    .grafiek-tabs button.actief { color: var(--cyan); opacity: 1; border-bottom: 3px solid var(--cyan); }
-    .grafiek-tabs button:hover { outline: none; opacity: 1; }
     .grafiek-vak .as { flex: 0 0 52px; width: 52px; display: block; }
     .grafiek-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-color: var(--rand) transparent; }
     .grafiek-scroll svg { display: block; }
@@ -390,10 +386,7 @@
     <section class="scherm-boven">
         <div class="panel grafiek">
           <div class="grafiek-kop">
-            <div class="grafiek-tabs">
-              <button type="button" class="tag actief" data-grafiek="koers">KOERSVERLOOP</button>
-              <button type="button" class="tag" data-grafiek="vermogen">VERMOGEN PER GROEP</button>
-            </div>
+            <div class="tag">KOERSVERLOOP</div>
             <span class="status" id="grafiekInfo"></span>
           </div>
           <div class="grafiek-vak">
@@ -584,41 +577,14 @@
 
     const ZICHTBAAR = 15; // zoveel rondes passen in beeld, de rest scrollt opzij
 
-    // De grafiek wisselt vanzelf tussen koersen en het vermogen per groep
-    let grafiekModus = "koers";
-    const groepKleuren = ["#ffd166", "#4cc9f0", "#f72585", "#90be6d", "#c77dff", "#f9844a", "#a8dadc", "#ff5c6c", "#39d98a", "#18d0e5", "#b5838d", "#ff9d2e"];
-
-    function wisselGrafiek(modus) {
-      grafiekModus = modus || (grafiekModus === "koers" ? "vermogen" : "koers");
-      $("#grafiekScroll").scrollLeft = $("#grafiekScroll").scrollWidth; // naar de nieuwste ronde
-      if (state) renderGrafiek();
-    }
-    setInterval(() => wisselGrafiek(), 20000);
-    document.querySelectorAll("[data-grafiek]").forEach((k) => k.addEventListener("click", () => wisselGrafiek(k.dataset.grafiek)));
-
     function renderGrafiek() {
-      document.querySelectorAll("[data-grafiek]").forEach((k) => k.classList.toggle("actief", k.dataset.grafiek === grafiekModus));
-      const nu = Date.now() + klokVerschil;
-
-      if (grafiekModus === "koers") {
-        const punten = (state.history || []).filter((pt) => pt && pt.p).map((pt) => ({ t: pt.t, v: pt.p }));
-        if (!punten.length || aandelen.some((a) => punten[punten.length - 1].v[a] !== state.prices[a])) {
-          punten.push({ t: nu, v: { ...state.prices } });
-        }
-        tekenLijnen(punten, aandelen.map((a, i) => ({
-          sleutel: a, naam: a, kleur: kleuren[i % kleuren.length], nu: state.prices[a]
-        })));
-      } else {
-        const punten = (state.vermogen || []).filter((pt) => pt && pt.w).map((pt) => ({ t: pt.t, v: pt.w }));
-        const nuW = Object.fromEntries(state.groups.map((g) => [g.id, Math.round(waardeVan(g))]));
-        if (!punten.length || state.groups.some((g) => punten[punten.length - 1].v[g.id] !== nuW[g.id])) {
-          punten.push({ t: nu, v: nuW });
-        }
-        if (punten.length === 1) punten.unshift({ t: nu - 1000, v: nuW });
-        tekenLijnen(punten, state.groups.map((g, i) => ({
-          sleutel: g.id, naam: g.name, kleur: groepKleuren[i % groepKleuren.length], nu: nuW[g.id]
-        })));
+      const punten = (state.history || []).filter((pt) => pt && pt.p).map((pt) => ({ t: pt.t, v: pt.p }));
+      if (!punten.length || aandelen.some((a) => punten[punten.length - 1].v[a] !== state.prices[a])) {
+        punten.push({ t: Date.now() + klokVerschil, v: { ...state.prices } });
       }
+      tekenLijnen(punten, aandelen.map((a, i) => ({
+        sleutel: a, naam: a, kleur: kleuren[i % kleuren.length], nu: state.prices[a]
+      })));
     }
 
     // Tekent vloeiende lijnen. punten: [{ t, v: { sleutel: waarde } }], reeksen: [{ sleutel, naam, kleur, nu }]

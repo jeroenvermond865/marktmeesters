@@ -83,7 +83,6 @@ Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naa
 ## Groot scherm en bediening
 
 - **`/beurs.html` – groot scherm** (beamer/tv): koersen, grafiek, tussenstand, nieuws, transacties en de aftelklok. Er staan geen knoppen op.
-  - De grafiek wisselt elke 20 seconden tussen **koersverloop** en **vermogen per groep**.
   - Onderaan loopt een **nieuwsticker** met koersen en koppen.
   - **Geluid**: klik één keer op *Geluid aanzetten*. Je hoort een beursbel bij start en einde, een alarm bij een krach, een fanfare bij een hausse en een kort signaal bij nieuws.
   - Het **eindscherm** wisselt tussen het podium en de **prijzen van vandaag** (beste deal, pechvogel, bankkoning, durfal, enz.).
