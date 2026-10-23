@@ -24,7 +24,7 @@
       <p class="melding fout" id="melding"></p>
     </form>
 
-    <p class="uitleg">Vraag het wachtwoord aan de spelleiding. Posten en beursleiding hebben elk een eigen wachtwoord.</p>
+    <p class="uitleg">Vraag het wachtwoord aan de spelleiding. Leden, posten en beursleiding hebben elk een eigen wachtwoord.</p>
   </main>
 
   <script>
@@ -54,7 +54,9 @@
         }
 
         // Een post die naar de beurs wilde, gaat naar de startpagina
-        if (inhoud.rol === "post" && terug.startsWith("/beurs")) terug = "/";
+        if (inhoud.rol === "post" && (terug.startsWith("/beurs") || terug.startsWith("/instellingen"))) terug = "/";
+        // Leden gaan altijd naar hun eigen groepspagina
+        if (inhoud.rol === "speler" && !terug.startsWith("/groep")) terug = "/groep.html";
         location.href = terug;
       } catch {
         melding.textContent = "De server is niet bereikbaar.";

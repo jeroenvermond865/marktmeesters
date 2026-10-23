@@ -11,12 +11,14 @@ const root = path.join(__dirname, "public");
 // Lokaal worden de standaardwachtwoorden hieronder gebruikt.
 const WACHTWOORD_BEURS = process.env.BEURS_WACHTWOORD || "beurs123";
 const WACHTWOORD_POST = process.env.POST_WACHTWOORD || "post123";
+// Wachtwoord voor de leden: zij kunnen alleen hun eigen groep bekijken.
+const WACHTWOORD_SPELER = process.env.SPELER_WACHTWOORD || "speler123";
 
 // Sleutel om inlog-cookies te ondertekenen. Afgeleid van de wachtwoorden,
 // zodat je na een herstart ingelogd blijft, maar na een wachtwoordwijziging niet.
 const SLEUTEL = crypto
   .createHash("sha256")
-  .update("marktmeesters|" + WACHTWOORD_BEURS + "|" + WACHTWOORD_POST)
+  .update("marktmeesters|" + WACHTWOORD_BEURS + "|" + WACHTWOORD_POST + "|" + WACHTWOORD_SPELER)
   .digest();
 
 const COOKIE = "mm_sessie";
@@ -219,7 +221,9 @@ function kiesNieuws() {
   return keuze[Math.floor(Math.random() * keuze.length)];
 }
 
-const clients = new Set();
+// Live-verbindingen. Elke verbinding krijgt zijn eigen weergave van het spel:
+// beurs en posten zien alles, leden alleen hun eigen groep.
+const clients = new Set(); // { res, weergave: () => object }
 let state;
 
 function nieuwSpel() {
@@ -261,8 +265,27 @@ function json(res, status, data) {
 }
 
 function stuurUpdate() {
-  const bericht = "data: " + JSON.stringify(state) + "\n\n";
-  clients.forEach((client) => client.write(bericht));
+  const volledig = "data: " + JSON.stringify(state) + "\n\n";
+  clients.forEach((c) => {
+    c.res.write(c.weergave ? "data: " + JSON.stringify(c.weergave()) + "\n\n" : volledig);
+  });
+}
+
+// Wat een lid te zien krijgt: de lijst met groepen, de koersen, het nieuws
+// en (als er een groep gekozen is) alleen de gegevens van de eigen groep.
+function spelerWeergave(groepId) {
+  const groep = state.groups.find((g) => g.id === groepId) || null;
+  return {
+    groepen: state.groups.map((g) => ({ id: g.id, name: g.name })),
+    posts: state.posts,
+    prices: state.prices,
+    previous: state.previous,
+    news: state.news.slice(0, 5),
+    groep,
+    transactions: groep
+      ? state.transactions.filter((t) => t.groupId === groep.id).slice(0, 15)
+      : []
+  };
 }
 
 function leesBody(req) {
@@ -384,7 +407,7 @@ function rolVan(req) {
     })
   );
   const [rol, handtekening] = String(cookies[COOKIE] || "").split(".");
-  if ((rol === "beurs" || rol === "post") && handtekening && gelijk(handtekening, onderteken(rol))) {
+  if (["beurs", "post", "speler"].includes(rol) && handtekening && gelijk(handtekening, onderteken(rol))) {
     return rol;
   }
   return null;
@@ -407,6 +430,7 @@ function ipVan(req) {
 // Welke pagina's wie mag zien
 const paginaRechten = {
   "/index.html": ["beurs", "post"],
+  "/groep.html": ["beurs", "post", "speler"],
   "/post.html": ["beurs", "post"],
   "/beurs.html": ["beurs"],
   "/instellingen.html": ["beurs"]
@@ -424,6 +448,12 @@ const types = {
 function serveFile(req, res) {
   let url = decodeURIComponent((req.url || "/").split("?")[0]);
   if (url === "/") url = "/index.html";
+
+  // Leden hebben geen keuzemenu nodig: stuur ze meteen naar hun eigen pagina
+  if (url === "/index.html" && rolVan(req) === "speler") {
+    res.writeHead(302, { Location: "/groep.html" });
+    return res.end();
+  }
 
   const nodig = paginaRechten[url];
   if (nodig && !nodig.includes(rolVan(req))) {
@@ -462,6 +492,7 @@ const server = http.createServer(async (req, res) => {
       let rol = null;
       if (gelijk(wachtwoord, WACHTWOORD_BEURS)) rol = "beurs";
       else if (gelijk(wachtwoord, WACHTWOORD_POST)) rol = "post";
+      else if (gelijk(wachtwoord, WACHTWOORD_SPELER)) rol = "speler";
 
       if (!rol) {
         wachtTot.set(ip, Date.now() + 1500);
@@ -494,6 +525,26 @@ const server = http.createServer(async (req, res) => {
       if (req.method === "GET" && url === "/api/me") {
         return json(res, 200, { rol });
       }
+
+      // Leden mogen alleen hun eigen groep live volgen, verder niets
+      if (url === "/api/speler/events") {
+        const groepId = Number(new URL(req.url, "http://x").searchParams.get("groep")) || null;
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive"
+        });
+        const client = { res, weergave: () => spelerWeergave(groepId) };
+        res.write("retry: 2000\n");
+        res.write("data: " + JSON.stringify(client.weergave()) + "\n\n");
+        clients.add(client);
+        req.on("close", () => clients.delete(client));
+        return;
+      }
+
+      if (rol === "speler") {
+        return json(res, 403, { error: "Met het ledenwachtwoord kun je alleen je eigen groep bekijken." });
+      }
     }
 
     if (req.method === "GET" && url === "/api/state") {
@@ -508,8 +559,9 @@ const server = http.createServer(async (req, res) => {
       });
       res.write("retry: 2000\n");
       res.write("data: " + JSON.stringify(state) + "\n\n");
-      clients.add(res);
-      req.on("close", () => clients.delete(res));
+      const client = { res, weergave: null };
+      clients.add(client);
+      req.on("close", () => clients.delete(client));
       return;
     }
 
@@ -650,6 +702,7 @@ const server = http.createServer(async (req, res) => {
       state.transactions.unshift({
         at: new Date().toISOString(),
         group: groep.name,
+        groupId: groep.id,
         action: actie,
         stock: aandeel,
         qty: aantal,
@@ -672,7 +725,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Houd de live-verbindingen open (sommige routers/telefoons sluiten stille verbindingen).
-setInterval(() => clients.forEach((c) => c.write(": ping\n\n")), 25000);
+setInterval(() => clients.forEach((c) => c.res.write(": ping\n\n")), 25000);
 
 function lokaleAdressen() {
   return Object.values(os.networkInterfaces())
@@ -690,9 +743,9 @@ server.listen(poort, () => {
     console.log("  Posten (zelfde wifi): http://" + ip + ":" + poort + "/");
   });
 
-  if (!process.env.BEURS_WACHTWOORD || !process.env.POST_WACHTWOORD) {
+  if (!process.env.BEURS_WACHTWOORD || !process.env.POST_WACHTWOORD || !process.env.SPELER_WACHTWOORD) {
     console.log("");
-    console.log("  Let op: standaardwachtwoorden in gebruik (beurs123 / post123).");
-    console.log("  Stel BEURS_WACHTWOORD en POST_WACHTWOORD in voordat je online gaat.");
+    console.log("  Let op: standaardwachtwoorden in gebruik (beurs123 / post123 / speler123).");
+    console.log("  Stel BEURS_WACHTWOORD, POST_WACHTWOORD en SPELER_WACHTWOORD in voordat je online gaat.");
   }
 });

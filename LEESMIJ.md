@@ -28,6 +28,7 @@ Er zijn twee wachtwoorden:
 |---|---|---|
 | Beursleiding | alles: nieuws, reset, beurs-scherm, posten | `beurs123` |
 | Posten | transacties invoeren en standen bekijken | `post123` |
+| Leden | alleen het saldo van de eigen groep bekijken | `speler123` |
 
 Inloggen blijft 7 dagen bewaard op dat apparaat. Uitloggen kan onderaan de startpagina.
 
@@ -36,6 +37,7 @@ Inloggen blijft 7 dagen bewaard op dat apparaat. Uitloggen kan onderaan de start
 - Op Render: ga naar je Web Service → **Environment** → voeg toe:
   - `BEURS_WACHTWOORD` = jouw wachtwoord voor de leiding
   - `POST_WACHTWOORD` = jouw wachtwoord voor de posten
+  - `SPELER_WACHTWOORD` = jouw wachtwoord voor de leden
   
   Klik op **Save changes**; Render herstart dan vanzelf.
 - Lokaal op Windows (cmd): `set BEURS_WACHTWOORD=...` en `set POST_WACHTWOORD=...`, daarna `npm start`.
@@ -50,6 +52,17 @@ Na het wijzigen van een wachtwoord moet iedereen opnieuw inloggen.
 - Kopen kan alleen met genoeg kasgeld, verkopen alleen met genoeg aandelen.
 - De tussenstand op de beurs telt kasgeld + aandelen tegen de huidige koers.
 - Willekeurig nieuws verandert koersen met een percentage, zodat het bij elke prijsschaal past.
+
+## Ledenpagina
+
+Leden loggen in met het ledenwachtwoord en komen dan op **/groep.html**. Daar kiezen ze één keer hun groep (de telefoon onthoudt dat) en zien ze live:
+
+- kasgeld, totale waarde en winst/verlies;
+- welke aandelen ze hebben, wat ze ervoor betaald hebben en wat ze nu waard zijn;
+- de actuele koersen en het laatste nieuws;
+- hun eigen transacties.
+
+Leden zien geen gegevens van andere groepen en kunnen niets invoeren.
 
 ## Spelinstellingen
 

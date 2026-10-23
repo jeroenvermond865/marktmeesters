@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#071426">
+  <title>Mijn groep · Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+  <style>
+    main { max-width: 560px; padding-bottom: 60px; }
+
+    .kaart {
+      margin-top: 14px;
+      padding: 18px;
+      border: 1px solid #29445f;
+      border-radius: 16px;
+      background: var(--card);
+    }
+
+    .kaart h2 { margin: 0 0 10px; font-size: 18px; }
+
+    /* Groep kiezen */
+    .kieslijst { display: grid; gap: 10px; margin-top: 18px; }
+    .kieslijst button {
+      padding: 20px;
+      background: var(--card);
+      color: var(--white);
+      border: 1px solid #29445f;
+      border-radius: 16px;
+      font-size: 22px;
+      text-align: left;
+    }
+    .kieslijst button:hover { border-color: var(--cyan); }
+
+    /* Saldo */
+    .saldo { text-align: center; padding: 24px 18px; }
+    .saldo .label { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .1em; }
+    .saldo .bedrag {
+      color: var(--green);
+      font-size: clamp(48px, 15vw, 72px);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+      margin: 6px 0 12px;
+    }
+    .saldo .klein-rij {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+      text-align: left;
+    }
+    .saldo .vak {
+      padding: 12px;
+      border-radius: 12px;
+      background: #071426;
+    }
+    .saldo .vak > span { display: block; color: var(--muted); font-size: 13px; }
+    .saldo .vak b { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+    /* Aandelen in bezit */
+    .bezitrij {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #ffffff1a;
+    }
+    .bezitrij:last-child { border-bottom: 0; }
+    .bezitrij .naam { font-weight: 800; font-size: 17px; }
+    .bezitrij .rechts { text-align: right; font-variant-numeric: tabular-nums; }
+    .bezitrij .uitleg-klein { color: var(--muted); font-size: 13px; }
+    .leeg-tekst { color: var(--muted); margin: 0; }
+
+    /* Koersen */
+    .koersrij {
+      display: flex;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #ffffff12;
+      font-variant-numeric: tabular-nums;
+    }
+    .koersrij:last-child { border-bottom: 0; }
+    .op { color: var(--green); }
+    .neer { color: var(--red); }
+
+    /* Nieuws en transacties */
+    .regel { padding: 9px 0; border-bottom: 1px solid #ffffff12; font-size: 15px; }
+    .regel:last-child { border-bottom: 0; }
+    .regel small { display: block; color: var(--muted); }
+
+    .wissel {
+      background: transparent;
+      color: var(--cyan);
+      border: 1px solid #29445f;
+      margin-top: 18px;
+    }
+
+    .nieuwsbalk.flits { animation: flits 1.2s ease-out; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbalk">
+      <span class="eyebrow" style="margin:0">MARKTMEESTERS</span>
+      <span class="verbinding" id="verbinding">Verbinden…</span>
+    </div>
+
+    <!-- Stap 1: groep kiezen -->
+    <section id="kiezen" hidden>
+      <h1 style="margin-top:20px">Welke groep ben jij?</h1>
+      <div class="kieslijst" id="kieslijst"></div>
+    </section>
+
+    <!-- Stap 2: eigen groep -->
+    <section id="mijnGroep" hidden>
+      <h1 id="groepNaam" style="margin:16px 0 0"></h1>
+
+      <section class="nieuwsbalk" id="nieuwsbalk"></section>
+
+      <div class="kaart saldo">
+        <div class="label">KASGELD</div>
+        <div class="bedrag" id="kas">€ –</div>
+        <div class="klein-rij">
+          <div class="vak"><span>Totale waarde</span><b id="totaal">–</b></div>
+          <div class="vak"><span>Winst / verlies</span><b id="resultaat">–</b></div>
+        </div>
+      </div>
+
+      <div class="kaart">
+        <h2>Aandelen in bezit</h2>
+        <div id="bezit"></div>
+      </div>
+
+      <div class="kaart">
+        <h2>Koersen nu</h2>
+        <div id="koersen"></div>
+      </div>
+
+      <div class="kaart">
+        <h2>Jullie transacties</h2>
+        <div id="transacties"></div>
+      </div>
+
+      <button type="button" class="wissel" id="wissel">Andere groep kiezen</button>
+    </section>
+  </main>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    function esc(tekst) {
+      return String(tekst).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function euro(bedrag) {
+      return "€ " + Math.round(Number(bedrag)).toLocaleString("nl-NL");
+    }
+
+    function resultaatHtml(bedrag) {
+      const r = Math.round(bedrag);
+      if (r > 0) return `<span class="winst">+${euro(r)}</span>`;
+      if (r < 0) return `<span class="verlies">−${euro(-r)}</span>`;
+      return `<span class="neutraal">€ 0</span>`;
+    }
+
+    function tijd(iso) {
+      return new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    // Gekozen groep onthouden op deze telefoon (ook als de link geen ?groep= heeft)
+    function bewaardeGroep() {
+      const uitLink = Number(new URLSearchParams(location.search).get("groep"));
+      if (uitLink) return uitLink;
+      try { return Number(localStorage.getItem("mm_groep")) || null; } catch { return null; }
+    }
+
+    function bewaarGroep(id) {
+      try {
+        if (id) localStorage.setItem("mm_groep", String(id));
+        else localStorage.removeItem("mm_groep");
+      } catch {}
+    }
+
+    let groepId = bewaardeGroep();
+    let bron = null;
+    let vorigNieuws = null;
+
+    // --- Groep kiezen ---
+
+    function toonKeuze(groepen) {
+      $("#kiezen").hidden = false;
+      $("#mijnGroep").hidden = true;
+      $("#kieslijst").innerHTML = "";
+      groepen.forEach((g) => {
+        const knop = document.createElement("button");
+        knop.type = "button";
+        knop.textContent = g.name;
+        knop.addEventListener("click", () => kies(g.id));
+        $("#kieslijst").append(knop);
+      });
+    }
+
+    function kies(id) {
+      groepId = id;
+      bewaarGroep(id);
+      history.replaceState(null, "", id ? "/groep.html?groep=" + id : "/groep.html");
+      verbind();
+      window.scrollTo(0, 0);
+    }
+
+    $("#wissel").addEventListener("click", () => kies(null));
+
+    // --- Eigen groep tonen ---
+
+    function toonGroep(data) {
+      const g = data.groep;
+      $("#kiezen").hidden = true;
+      $("#mijnGroep").hidden = false;
+      document.title = g.name + " · Marktmeesters";
+      $("#groepNaam").textContent = g.name;
+
+      const cost = g.cost || {};
+      const waarde = data.posts.reduce((som, a) => som + (g.shares[a] || 0) * data.prices[a], 0);
+      const open = data.posts.reduce((som, a) => som + ((g.shares[a] || 0) ? (g.shares[a] * data.prices[a] - (cost[a] || 0)) : 0), 0);
+
+      $("#kas").textContent = euro(g.cash);
+      $("#totaal").textContent = euro(g.cash + waarde);
+      $("#resultaat").innerHTML = resultaatHtml((g.realized || 0) + open);
+
+      // Aandelen in bezit
+      const inBezit = data.posts.filter((a) => g.shares[a] > 0);
+      $("#bezit").innerHTML = inBezit.length
+        ? inBezit.map((a) => {
+            const aantal = g.shares[a];
+            const gemiddeld = (cost[a] || 0) / aantal;
+            const r = aantal * data.prices[a] - (cost[a] || 0);
+            return `
+              <div class="bezitrij">
+                <span class="naam">${esc(a)}</span>
+                <span class="rechts"><b>${aantal}×</b> = ${euro(aantal * data.prices[a])}</span>
+                <span class="uitleg-klein">gekocht à ${euro(gemiddeld)} · nu ${euro(data.prices[a])}</span>
+                <span class="rechts">${resultaatHtml(r)}</span>
+              </div>`;
+          }).join("") +
+          `<p class="leeg-tekst" style="margin-top:10px;font-size:14px">Al vastgezet met verkopen: <b>${resultaatHtml(g.realized || 0)}</b></p>`
+        : `<p class="leeg-tekst">Nog geen aandelen. Ga naar een post om te kopen!</p>` +
+          (g.realized ? `<p class="leeg-tekst" style="margin-top:8px;font-size:14px">Al vastgezet met verkopen: <b>${resultaatHtml(g.realized)}</b></p>` : "");
+
+      // Koersen
+      $("#koersen").innerHTML = data.posts.map((a) => {
+        const verschil = data.prices[a] - data.previous[a];
+        const pijl = verschil > 0 ? `<span class="op">▲ +${verschil}</span>` : verschil < 0 ? `<span class="neer">▼ ${verschil}</span>` : "";
+        return `<div class="koersrij"><span>${esc(a)}</span><span>${pijl} <b>${euro(data.prices[a])}</b></span></div>`;
+      }).join("");
+
+      // Transacties
+      $("#transacties").innerHTML = data.transactions.length
+        ? data.transactions.map((t) => {
+            const resultaat = t.result !== null && t.result !== undefined
+              ? ` · ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}` : "";
+            return `
+              <div class="regel">
+                ${t.action === "buy" ? "Gekocht" : "Verkocht"}: <b>${t.qty}× ${esc(t.stock)}</b> à ${euro(t.price)}
+                <small>${tijd(t.at)}${t.station ? " · post " + esc(t.station) : ""}${resultaat}</small>
+              </div>`;
+          }).join("")
+        : `<p class="leeg-tekst">Nog geen transacties.</p>`;
+
+      // Laatste nieuws, met een flits als er iets nieuws is
+      const n = data.news[0];
+      if (n) {
+        const effecten = n.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ");
+        $("#nieuwsbalk").innerHTML = `<span class="label">LAATSTE NIEUWS</span><b>${esc(n.titel)}</b>${effecten ? " — " + effecten : ""}`;
+        if (vorigNieuws && vorigNieuws !== n.at) {
+          const balk = $("#nieuwsbalk");
+          balk.classList.remove("flits"); void balk.offsetWidth; balk.classList.add("flits");
+          if (navigator.vibrate) navigator.vibrate(150);
+        }
+        vorigNieuws = n.at;
+      }
+    }
+
+    // --- Live verbinding ---
+
+    function verbind() {
+      if (bron) bron.close();
+      vorigNieuws = null;
+      bron = new EventSource("/api/speler/events" + (groepId ? "?groep=" + groepId : ""));
+
+      bron.onopen = () => {
+        $("#verbinding").textContent = "● Live";
+        $("#verbinding").className = "verbinding";
+      };
+      bron.onerror = () => {
+        $("#verbinding").textContent = "● Geen verbinding";
+        $("#verbinding").className = "verbinding weg";
+        fetch("/api/me").then((r) => {
+          if (r.status === 401) location.href = "/login.html?terug=" + encodeURIComponent(location.pathname + location.search);
+        }).catch(() => {});
+      };
+      bron.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.groep) {
+          toonGroep(data);
+        } else {
+          // Geen of niet-bestaande groep gekozen (bijv. verwijderd in de instellingen)
+          if (groepId) { groepId = null; bewaarGroep(null); }
+          toonKeuze(data.groepen);
+        }
+      };
+    }
+
+    verbind();
+  </script>
+</body>
+</html>
