@@ -150,8 +150,10 @@
     .transaction { padding: 12px 0; border-bottom: 1px solid #ffffff22; }
 
     .auto { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); }
-    .auto input { width: auto; }
-    .auto select { width: auto; padding: 6px 8px; }
+    .auto { flex-wrap: wrap; }
+    .auto-aan { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .auto input[type="checkbox"] { width: auto; }
+    .auto input[type="number"] { width: 90px; padding: 6px 8px; text-align: right; }
 
     @media (max-width: 900px) {
       .prices { grid-template-columns: repeat(2, 1fr); }
@@ -204,16 +206,14 @@
 
           <button id="randomButton">Willekeurig nieuws</button>
 
-          <label class="auto">
-            <input type="checkbox" id="autoNieuws">
-            Automatisch nieuws elke
-            <select id="autoInterval">
-              <option value="120">2 min</option>
-              <option value="180" selected>3 min</option>
-              <option value="300">5 min</option>
-              <option value="600">10 min</option>
-            </select>
-          </label>
+          <div class="auto">
+            <label class="auto-aan">
+              <input type="checkbox" id="autoNieuws">
+              Automatisch nieuws elke
+            </label>
+            <input type="number" id="autoInterval" min="5" max="3600" step="1" value="180" inputmode="numeric" aria-label="Aantal seconden">
+            seconden
+          </div>
           <div class="status" id="autoStatus"></div>
 
           <form id="eigenNieuws">
@@ -407,9 +407,26 @@
     let volgendeOm = 0;
     const autoStatus = document.querySelector("#autoStatus");
 
+    const intervalInput = document.querySelector("#autoInterval");
+    const MIN_SEC = 5;
+    const MAX_SEC = 3600;
+
+    // Eerder gekozen aantal seconden onthouden op deze computer
+    try {
+      const bewaard = localStorage.getItem("mm_interval");
+      if (bewaard) intervalInput.value = bewaard;
+    } catch {}
+
+    // Altijd een geldig getal tussen 5 en 3600 seconden
+    function intervalSeconden() {
+      let s = Math.round(Number(intervalInput.value));
+      if (!Number.isFinite(s) || s < MIN_SEC) s = MIN_SEC;
+      if (s > MAX_SEC) s = MAX_SEC;
+      return s;
+    }
+
     function planVolgende() {
-      const seconden = Number(document.querySelector("#autoInterval").value);
-      volgendeOm = Date.now() + seconden * 1000;
+      volgendeOm = Date.now() + intervalSeconden() * 1000;
     }
 
     document.querySelector("#autoNieuws").addEventListener("change", (e) => {
@@ -429,7 +446,9 @@
       }
     });
 
-    document.querySelector("#autoInterval").addEventListener("change", () => {
+    intervalInput.addEventListener("change", () => {
+      intervalInput.value = intervalSeconden();
+      try { localStorage.setItem("mm_interval", intervalInput.value); } catch {}
       if (autoTimer) planVolgende();
     });
 
