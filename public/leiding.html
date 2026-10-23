@@ -65,6 +65,16 @@
     [data-bank="aflossen"].actief { background: var(--orange); border-color: var(--orange); }
     .melding { margin: 0; font-weight: 800; min-height: 0; }
     .fout { color: var(--red); }
+    .voorraad { display: grid; gap: 10px; }
+    .vrij-rij { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--veld); }
+    .vrij-rij .naam { font-weight: 800; }
+    .vrij-rij .info { color: var(--muted); font-size: 14px; text-align: right; }
+    .vrij-rij .info b { color: var(--white); font-size: 18px; }
+    .vrij-rij .info.op b { color: var(--red); }
+    .vrij-knoppen { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr) 1.3fr; gap: 6px; }
+    .vrij-knoppen button { padding: 10px 4px; font-size: 15px; background: var(--card); color: var(--white); border: 1px solid var(--rand2); }
+    .vrij-knoppen button.plus { border-color: var(--green); }
+    .vrij-knoppen button.min { border-color: var(--red); }
     .tip-snel button.actief { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
     .tiplijst { font-size: 14px; color: var(--muted); }
     .tiplijst > div { padding: 10px 0; border-bottom: 1px solid #ffffff12; }
@@ -192,6 +202,13 @@
       <p class="status" id="bankInfo"></p>
       <button type="button" id="bankKnop">🏦 Leen € 100</button>
       <p class="melding" id="bankMelding"></p>
+    </section>
+
+    <!-- Voorraad -->
+    <section class="kaart">
+      <h2>📦 Voorraad per post</h2>
+      <p class="status">Geef tijdens het spel meer of minder aandelen vrij. Het grote scherm meldt het meteen.</p>
+      <div class="voorraad" id="voorraad"></div>
     </section>
 
     <!-- Groot scherm -->
@@ -483,6 +500,45 @@
       }
     });
 
+    // --- Voorraad ---
+
+    function tekenVoorraad() {
+      $("#voorraad").innerHTML = aandelen.map((a) => {
+        const totaal = (state.supply && state.supply[a]) || 0;
+        const bezit = state.groups.reduce((som, g) => som + (g.shares[a] || 0), 0);
+        if (!totaal) {
+          return `<div class="vrij-rij">
+            <span class="naam">${esc(a)}</span>
+            <span class="info"><b>onbeperkt</b><br>${bezit} in bezit</span>
+            <div class="vrij-knoppen" style="grid-template-columns:1fr">
+              <button type="button" data-voorraad="${esc(a)}" data-zet="${bezit + 10}">Begrenzen (nog 10 te koop)</button>
+            </div>
+          </div>`;
+        }
+        const vrij = totaal - bezit;
+        const knop = (d, klasse) => {
+          const nieuw = totaal + d;
+          const kan = nieuw >= Math.max(1, bezit);
+          return `<button type="button" class="${klasse}" data-voorraad="${esc(a)}" data-zet="${nieuw}" ${kan ? "" : "disabled"}>${d > 0 ? "+" : "−"}${Math.abs(d)}</button>`;
+        };
+        return `<div class="vrij-rij">
+          <span class="naam">${esc(a)}</span>
+          <span class="info ${vrij <= 0 ? "op" : ""}"><b>${vrij <= 0 ? "uitverkocht" : `nog ${vrij}`}</b><br>${bezit} in bezit · totaal ${totaal}</span>
+          <div class="vrij-knoppen">
+            ${knop(-5, "min")}${knop(-1, "min")}${knop(1, "plus")}${knop(5, "plus")}
+            <button type="button" data-voorraad="${esc(a)}" data-zet="0">∞ onbeperkt</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    $("#voorraad").addEventListener("click", (e) => {
+      const knop = e.target.closest("[data-voorraad]");
+      if (!knop || knop.disabled) return;
+      if (knop.dataset.zet === "0" && !confirm(`${knop.dataset.voorraad} onbeperkt maken? Dan kan iedereen zoveel kopen als hij wil.`)) return;
+      doe("/api/voorraad", { stock: knop.dataset.voorraad, voorraad: Number(knop.dataset.zet) });
+    });
+
     // --- Groot scherm ---
 
     $("#eindeKnop").addEventListener("click", () => doe("/api/scherm", { einde: !(state.scherm && state.scherm.einde) }));
@@ -532,6 +588,7 @@
         : "Het grote scherm toont de koersen. Bij sluiten van de beurs komt het eindscherm vanzelf.";
 
       tekenBank();
+      tekenVoorraad();
 
       tekenKlok();
     }

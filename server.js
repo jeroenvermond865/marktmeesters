@@ -990,7 +990,7 @@ const server = http.createServer(async (req, res) => {
       const alleenBeurs =
         url.startsWith("/api/news/") || url === "/api/reset" || url === "/api/settings" ||
         url === "/api/game" || url.startsWith("/api/tip") || url === "/api/backup" || url === "/api/herstel" ||
-        url === "/api/auto" || url === "/api/scherm" || url === "/api/bank";
+        url === "/api/auto" || url === "/api/scherm" || url === "/api/bank" || url === "/api/voorraad";
       if (alleenBeurs && rol !== "beurs") {
         return json(res, 403, { error: "Alleen de beursleiding mag dit doen." });
       }
@@ -1061,6 +1061,37 @@ const server = http.createServer(async (req, res) => {
       // Bij aanzetten of een ander interval: de aftelling opnieuw beginnen
       if (state.auto.aan && (!was || body.herstart !== false)) planAutoNieuws(Date.now());
       if (!state.auto.aan) state.auto.volgende = null;
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
+
+    // Voorraad van een post aanpassen tijdens het spel (0 = onbeperkt)
+    if (req.method === "POST" && url === "/api/voorraad") {
+      const body = await leesBody(req);
+      const aandeel = String(body.stock || "");
+      const post = instellingen.posten.find((p) => p.naam === aandeel);
+      const nieuw = Math.round(Number(body.voorraad));
+      if (!post || !state.posts.includes(aandeel)) return json(res, 400, { error: "Onbekende post." });
+      const bezit = inBezit(aandeel);
+      const minimum = Math.max(1, bezit);
+      if (!Number.isFinite(nieuw) || nieuw < 0 || nieuw > 100000 || (nieuw > 0 && nieuw < minimum)) {
+        return json(res, 400, { error: `De voorraad van ${aandeel} kan niet lager dan ${minimum} (er zijn er ${bezit} in bezit).` });
+      }
+      const oud = post.voorraad;
+      if (oud === nieuw) return json(res, 200, { ok: true });
+      post.voorraad = nieuw;
+      bewaarInstellingen();
+      werkRegelsBij();
+
+      // Kort bericht op het grote scherm, zodat de groepen het zien.
+      // Meerdere klikken binnen een minuut over dezelfde post worden één bericht.
+      const vorige = state.news[0];
+      if (vorige && vorige.voorraadPost === aandeel && Date.now() - Date.parse(vorige.at) < 60000) state.news.shift();
+      const vrij = nieuw ? nieuw - bezit : null;
+      if (!nieuw) voegNieuwsToe(`Onbeperkt aandelen ${aandeel}!`, `Er zijn vanaf nu genoeg aandelen ${aandeel} voor iedereen.`, []);
+      else if (!oud || nieuw > oud) voegNieuwsToe(`Extra aandelen ${aandeel} vrijgegeven`, `Er zijn nu nog ${vrij} aandelen ${aandeel} te koop.`, []);
+      else voegNieuwsToe(`Minder aandelen ${aandeel} beschikbaar`, vrij > 0 ? `Er zijn nog maar ${vrij} aandelen ${aandeel} te koop.` : `De aandelen ${aandeel} zijn uitverkocht!`, []);
+      state.news[0].voorraadPost = aandeel;
       stuurUpdate();
       return json(res, 200, { ok: true });
     }

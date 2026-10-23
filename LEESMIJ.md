@@ -85,6 +85,8 @@ Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naa
 - **`/beurs.html` – groot scherm** (beamer/tv): koersen, grafiek, tussenstand, nieuws, transacties en de aftelklok. Er staan geen knoppen op.
 - **`/leiding.html` – bediening** (op je telefoon): alle knoppen van de beursleiding.
 
+Via de bediening kun je ook per post de **voorraad** aanpassen (−5, −1, +1, +5 of onbeperkt); het grote scherm meldt dat meteen.
+
 Lenen en aflossen bij de **bank** gaat alleen via de bediening. Over een lening wordt rente berekend.
 
 Automatisch nieuws en geplande tips lopen op de server, dus ook als je telefoon op slot gaat.
