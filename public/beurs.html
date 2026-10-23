@@ -148,6 +148,10 @@
     /* Grafiek: vaste y-as links, de rest scrollt zijwaarts */
     .grafiek-kop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
     .grafiek-vak { display: flex; margin-top: 8px; }
+    .grafiek-tabs { display: flex; gap: 18px; flex-wrap: wrap; }
+    .grafiek-tabs button { width: auto; padding: 0 0 4px; background: none; border: 0; border-radius: 0; color: var(--muted); opacity: .6; font-size: 16px; }
+    .grafiek-tabs button.actief { color: var(--cyan); opacity: 1; border-bottom: 3px solid var(--cyan); }
+    .grafiek-tabs button:hover { outline: none; opacity: 1; }
     .grafiek-vak .as { flex: 0 0 52px; width: 52px; display: block; }
     .grafiek-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-color: var(--rand) transparent; }
     .grafiek-scroll svg { display: block; }
@@ -311,6 +315,49 @@
     @media (max-width: 1100px) {
       .scherm-boven, .scherm-onder { grid-template-columns: 1fr; }
     }
+
+    /* Geluidknop naast de terugknop */
+    .geluidknop { width: auto; margin-left: 8px; background: none; font: inherit; font-size: 14px; cursor: pointer; }
+    .geluidknop.aan { opacity: 1; color: var(--green); border-color: var(--green); }
+    .geluidknop.wacht { opacity: 1; color: var(--orange); border-color: var(--orange); animation: knipper 1.2s infinite; }
+
+    /* Nieuwsticker onderaan */
+    body { padding-bottom: 64px; }
+    .ticker {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 40;
+      height: 52px;
+      overflow: hidden;
+      background: var(--cyan);
+      color: var(--bg);
+      font-weight: 800;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 -6px 20px #0006;
+    }
+    .ticker-band { display: inline-flex; white-space: nowrap; will-change: transform; animation: tikker 60s linear infinite; }
+    .ticker-band span { padding: 0 28px; }
+    .ticker-band .kop { font-weight: 900; }
+    .ticker-band .op { color: #0b6b3a; }
+    .ticker-band .neer { color: #8f1020; }
+    .ticker-band .sep { opacity: .5; padding: 0 4px; }
+    @keyframes tikker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+    /* Prijzen op het eindscherm */
+    .prijzen-kop { margin: 20px 0 24px; }
+    .eind-stippen { display: flex; gap: 10px; justify-content: center; margin-top: 26px; }
+    .eind-stippen i { width: 12px; height: 12px; border-radius: 50%; background: var(--rand2); }
+    .eind-stippen i.aan { background: var(--cyan); }
+    #eindDeel1, #eindDeel2 { animation: infaden .6s ease-out; }
+    @keyframes infaden { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .prijzen { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; text-align: left; }
+    .prijs { padding: 14px 16px; border: 1px solid var(--rand); border-radius: 16px; background: var(--card); }
+    .prijs .icoon { font-size: 30px; }
+    .prijs .titel { color: var(--orange); font-weight: 900; font-size: 17px; margin-top: 4px; }
+    .prijs .wie { font-size: 20px; font-weight: 900; margin-top: 4px; }
+    .prijs .waarom { color: var(--muted); font-size: 14px; margin-top: 2px; }
   </style>
   <link id="thema" rel="stylesheet" href="/thema.css">
 </head>
@@ -319,6 +366,7 @@
     <header>
       <div>
         <a class="terug" href="/">← Alle pagina's</a>
+        <button type="button" class="terug geluidknop" id="geluidKnop">🔇 Geluid aanzetten</button>
         <div class="tag">SCOUTING HANDELSSPEL</div>
         <h1>AANDELENBEURS NIEUWE VAART</h1>
       </div>
@@ -342,7 +390,10 @@
     <section class="scherm-boven">
         <div class="panel grafiek">
           <div class="grafiek-kop">
-            <div class="tag">KOERSVERLOOP</div>
+            <div class="grafiek-tabs">
+              <button type="button" class="tag actief" data-grafiek="koers">KOERSVERLOOP</button>
+              <button type="button" class="tag" data-grafiek="vermogen">VERMOGEN PER GROEP</button>
+            </div>
             <span class="status" id="grafiekInfo"></span>
           </div>
           <div class="grafiek-vak">
@@ -381,15 +432,25 @@
     </section>
   </div>
 
+  <!-- Nieuwsticker -->
+  <div class="ticker" aria-hidden="true"><div class="ticker-band" id="ticker"></div></div>
+
   <!-- Eindscherm -->
   <div class="einde" id="einde" hidden>
     <canvas id="confetti"></canvas>
     <div class="einde-inhoud">
       <div class="tag">DE BEURS IS GESLOTEN</div>
+      <div id="eindDeel1">
       <h1>🏆 <span id="winnaar"></span> wint!</h1>
       <p class="ondertitel" id="eindTekst"></p>
       <div class="podium" id="podium"></div>
       <table class="rest"><tbody id="eindLijst"></tbody></table>
+      </div>
+      <div id="eindDeel2" hidden>
+        <h1 class="prijzen-kop">🏅 Prijzen van vandaag</h1>
+        <div class="prijzen" id="prijzen"></div>
+      </div>
+      <div class="eind-stippen"><i id="stip1" class="aan"></i><i id="stip2"></i></div>
     </div>
   </div>
 
@@ -411,7 +472,7 @@
     }
 
     function euro(bedrag) {
-      return "€ " + Math.round(Number(bedrag)).toLocaleString("nl-NL");
+      return "€\u00a0" + Math.round(Number(bedrag)).toLocaleString("nl-NL");
     }
 
     function tijd(iso) {
@@ -523,21 +584,54 @@
 
     const ZICHTBAAR = 15; // zoveel rondes passen in beeld, de rest scrollt opzij
 
+    // De grafiek wisselt vanzelf tussen koersen en het vermogen per groep
+    let grafiekModus = "koers";
+    const groepKleuren = ["#ffd166", "#4cc9f0", "#f72585", "#90be6d", "#c77dff", "#f9844a", "#a8dadc", "#ff5c6c", "#39d98a", "#18d0e5", "#b5838d", "#ff9d2e"];
+
+    function wisselGrafiek(modus) {
+      grafiekModus = modus || (grafiekModus === "koers" ? "vermogen" : "koers");
+      $("#grafiekScroll").scrollLeft = $("#grafiekScroll").scrollWidth; // naar de nieuwste ronde
+      if (state) renderGrafiek();
+    }
+    setInterval(() => wisselGrafiek(), 20000);
+    document.querySelectorAll("[data-grafiek]").forEach((k) => k.addEventListener("click", () => wisselGrafiek(k.dataset.grafiek)));
+
     function renderGrafiek() {
+      document.querySelectorAll("[data-grafiek]").forEach((k) => k.classList.toggle("actief", k.dataset.grafiek === grafiekModus));
+      const nu = Date.now() + klokVerschil;
+
+      if (grafiekModus === "koers") {
+        const punten = (state.history || []).filter((pt) => pt && pt.p).map((pt) => ({ t: pt.t, v: pt.p }));
+        if (!punten.length || aandelen.some((a) => punten[punten.length - 1].v[a] !== state.prices[a])) {
+          punten.push({ t: nu, v: { ...state.prices } });
+        }
+        tekenLijnen(punten, aandelen.map((a, i) => ({
+          sleutel: a, naam: a, kleur: kleuren[i % kleuren.length], nu: state.prices[a]
+        })));
+      } else {
+        const punten = (state.vermogen || []).filter((pt) => pt && pt.w).map((pt) => ({ t: pt.t, v: pt.w }));
+        const nuW = Object.fromEntries(state.groups.map((g) => [g.id, Math.round(waardeVan(g))]));
+        if (!punten.length || state.groups.some((g) => punten[punten.length - 1].v[g.id] !== nuW[g.id])) {
+          punten.push({ t: nu, v: nuW });
+        }
+        if (punten.length === 1) punten.unshift({ t: nu - 1000, v: nuW });
+        tekenLijnen(punten, state.groups.map((g, i) => ({
+          sleutel: g.id, naam: g.name, kleur: groepKleuren[i % groepKleuren.length], nu: nuW[g.id]
+        })));
+      }
+    }
+
+    // Tekent vloeiende lijnen. punten: [{ t, v: { sleutel: waarde } }], reeksen: [{ sleutel, naam, kleur, nu }]
+    function tekenLijnen(punten, reeksen) {
       const scroll = $("#grafiekScroll");
       const svg = $("#grafiek");
       const as = $("#grafiekAs");
       const H = 260, boven = 14, onder = 34, rand = 18;
+      const n = punten.length;
 
-      // Elke koerswijziging is een ronde; het laatste punt is de stand van nu
-      const rondes = (state.history || []).filter((pt) => pt && pt.p);
-      if (!rondes.length || aandelen.some((a) => rondes[rondes.length - 1].p[a] !== state.prices[a])) {
-        rondes.push({ t: Date.now() + klokVerschil, p: { ...state.prices } });
-      }
-      const n = rondes.length;
-
-      const waarden = rondes.flatMap((pt) => aandelen.map((a) => pt.p[a]).filter((w) => w !== undefined));
+      const waarden = punten.flatMap((pt) => reeksen.map((r) => pt.v[r.sleutel]).filter((w) => w !== undefined));
       let min = Math.min(...waarden), max = Math.max(...waarden);
+      if (!Number.isFinite(min)) { min = 0; max = 100; }
       if (min === max) { min -= 10; max += 10; }
       const marge = (max - min) * 0.1;
       min = Math.max(0, min - marge); max += marge;
@@ -556,7 +650,7 @@
       let asInhoud = "";
       for (let i = 0; i <= 4; i++) {
         const w = min + ((max - min) * i) / 4;
-        asInhoud += `<text x="46" y="${y(w) + 4}" style="fill:var(--muted)" font-size="12" text-anchor="end">€${Math.round(w)}</text>`;
+        asInhoud += `<text x="46" y="${y(w) + 4}" style="fill:var(--muted)" font-size="12" text-anchor="end">€${Math.round(w).toLocaleString("nl-NL")}</text>`;
       }
       as.setAttribute("viewBox", `0 0 52 ${H}`);
       as.innerHTML = asInhoud;
@@ -566,21 +660,18 @@
         const w = min + ((max - min) * i) / 4;
         inhoud += `<line x1="0" x2="${breedte}" y1="${y(w)}" y2="${y(w)}" style="stroke:var(--rand);opacity:.5"/>`;
       }
-      // Rondenummer en tijd onder elk punt
-      rondes.forEach((pt, i) => {
+      punten.forEach((pt, i) => {
         inhoud += `<line x1="${x(i)}" x2="${x(i)}" y1="${boven}" y2="${H - onder}" style="stroke:var(--rand);opacity:.2"/>`;
         inhoud += `<text x="${x(i)}" y="${H - 18}" style="fill:var(--muted)" font-size="11" text-anchor="middle">${i + 1}</text>`;
         inhoud += `<text x="${x(i)}" y="${H - 5}" style="fill:var(--muted);opacity:.65" font-size="10" text-anchor="middle">${new Date(pt.t).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</text>`;
       });
-      // Een vloeiende lijn per aandeel, met stippen op de rondes
-      aandelen.forEach((a, k) => {
-        const kleur = kleuren[k % kleuren.length];
+      reeksen.forEach((r) => {
         const pts = [];
-        rondes.forEach((pt, i) => { if (pt.p[a] !== undefined) pts.push([x(i), y(pt.p[a])]); });
-        inhoud += `<path d="${vloeiendPad(pts)}" fill="none" stroke="${kleur}" stroke-width="3" stroke-linecap="round"/>`;
+        punten.forEach((pt, i) => { if (pt.v[r.sleutel] !== undefined) pts.push([x(i), y(pt.v[r.sleutel])]); });
+        inhoud += `<path d="${vloeiendPad(pts)}" fill="none" stroke="${r.kleur}" stroke-width="3" stroke-linecap="round"/>`;
         pts.forEach(([px, py], i) => {
           const laatste = i === pts.length - 1;
-          inhoud += `<circle cx="${px}" cy="${py}" r="${laatste ? 5 : 3}" style="fill:${laatste ? kleur : "var(--bg)"}" stroke="${kleur}" stroke-width="2"/>`;
+          inhoud += `<circle cx="${px}" cy="${py}" r="${laatste ? 5 : 3}" style="fill:${laatste ? r.kleur : "var(--bg)"}" stroke="${r.kleur}" stroke-width="2"/>`;
         });
       });
 
@@ -593,8 +684,8 @@
         ? `${n} rondes · scroll opzij voor eerdere rondes`
         : `${n} ${n === 1 ? "ronde" : "rondes"}`;
 
-      $("#legenda").innerHTML = aandelen.map((a, i) =>
-        `<span><i style="background:${kleuren[i % kleuren.length]}"></i>${esc(a)} <b>${euro(state.prices[a])}</b></span>`).join("");
+      $("#legenda").innerHTML = reeksen.map((r) =>
+        `<span><i style="background:${r.kleur}"></i>${esc(r.naam)} <b>${euro(r.nu)}</b></span>`).join("");
     }
 
     // Bij een ander schermformaat de grafiek opnieuw tekenen
@@ -710,9 +801,29 @@
         <tr><td>${i + 1}.</td><td style="text-align:left">${esc(g.name)}</td>
         <td class="num">${resultaatHtml(g.resultaat)}</td><td class="num"><b>${euro(g.totaal)}</b></td></tr>`).join("");
 
+      $("#prijzen").innerHTML = prijzen().map((p) => `
+        <div class="prijs">
+          <div class="icoon">${p.icoon}</div>
+          <div class="titel">${p.titel}</div>
+          <div class="wie">${p.wie}</div>
+          <div class="waarom">${p.waarom}</div>
+        </div>`).join("") || `<p class="ondertitel">Nog geen bijzondere prestaties.</p>`;
+
       $("#einde").hidden = false;
       confetti();
     }
+
+    // Het eindscherm wisselt om de 15 seconden tussen podium en prijzen (op een beamer scrolt niemand)
+    let eindDeel = 1;
+    setInterval(() => {
+      if ($("#einde").hidden) { eindDeel = 1; return; }
+      eindDeel = eindDeel === 1 ? 2 : 1;
+      $("#eindDeel1").hidden = eindDeel !== 1;
+      $("#eindDeel2").hidden = eindDeel !== 2;
+      $("#stip1").className = eindDeel === 1 ? "aan" : "";
+      $("#stip2").className = eindDeel === 2 ? "aan" : "";
+      if (eindDeel === 1) confetti();
+    }, 15000);
 
     // Eindscherm bijwerken zonder opnieuw confetti (bijv. als er nog iets verandert)
     function werkEindschermBij() {
@@ -774,7 +885,9 @@
       renderNieuws();
       renderTransacties();
       renderRanking();
+      renderTicker();
       tekenSpeelklok();
+      speelNieuweGeluiden();
 
       // Het eindscherm wordt bediend vanaf de bedieningspagina (en komt vanzelf als de beurs sluit)
       const einde = !!(state.scherm && state.scherm.einde);
@@ -799,6 +912,154 @@
       const inhoud = await res.json();
       if (!res.ok) throw new Error(inhoud.error || "Er ging iets mis.");
       return inhoud;
+    }
+
+    // --- Geluiden (gemaakt met de browser zelf, geen bestanden nodig) ---
+
+    let audio = null;
+    let geluidAan = false;
+    try { geluidAan = localStorage.getItem("mm_geluid") === "aan"; } catch {}
+
+    function zetGeluidKnop() {
+      const knop = $("#geluidKnop");
+      const werkt = geluidAan && audio && audio.state === "running";
+      knop.className = "terug geluidknop " + (werkt ? "aan" : geluidAan ? "wacht" : "");
+      knop.textContent = werkt ? "🔊 Geluid aan" : geluidAan ? "🔊 Klik hier om geluid te activeren" : "🔇 Geluid aanzetten";
+    }
+
+    function activeerAudio() {
+      if (!geluidAan) return;
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      audio.resume().then(zetGeluidKnop);
+    }
+
+    $("#geluidKnop").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const werkt = geluidAan && audio && audio.state === "running";
+      geluidAan = !werkt;
+      try { localStorage.setItem("mm_geluid", geluidAan ? "aan" : "uit"); } catch {}
+      if (geluidAan) { activeerAudio(); setTimeout(() => speel("nieuws"), 150); }
+      zetGeluidKnop();
+    });
+    // Elke klik op de pagina mag het geluid (weer) activeren
+    document.addEventListener("click", activeerAudio);
+    zetGeluidKnop();
+
+    // Eén toon met een zachte aanzet en uitsterven
+    function toon(freq, start, duur, { type = "sine", vol = 0.25, naar = null } = {}) {
+      const t = audio.currentTime + start;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      if (naar) osc.frequency.exponentialRampToValueAtTime(naar, t + duur);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + duur);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + duur + 0.05);
+    }
+
+    // Beursbel: een paar heldere slagen met boventonen
+    function bel(slagen) {
+      for (let i = 0; i < slagen; i++) {
+        const s = i * 0.42;
+        toon(1046, s, 1.6, { vol: 0.28 });
+        toon(2093, s, 1.0, { vol: 0.12 });
+        toon(3136, s, 0.6, { vol: 0.06 });
+      }
+    }
+
+    const geluiden = {
+      start: () => bel(3),
+      einde: () => { bel(6); toon(523, 2.6, 2.5, { type: "triangle", vol: 0.25 }); },
+      krach: () => { for (let i = 0; i < 3; i++) toon(880, i * 0.6, 0.55, { type: "sawtooth", vol: 0.18, naar: 330 }); },
+      hausse: () => { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => toon(f, i * 0.13, i === 5 ? 0.8 : 0.18, { type: "square", vol: 0.12 })); },
+      dividend: () => { [1976, 2637, 1976, 2637].forEach((f, i) => toon(f, i * 0.08, 0.15, { type: "triangle", vol: 0.15 })); },
+      pauze: () => toon(330, 0, 0.8, { type: "triangle", vol: 0.2, naar: 220 }),
+      voorraad: () => toon(880, 0, 0.3, { type: "triangle", vol: 0.18 }),
+      nieuws: () => { toon(1318, 0, 0.25, { vol: 0.22 }); toon(988, 0.18, 0.45, { vol: 0.22 }); }
+    };
+    const voorrang = ["einde", "start", "krach", "hausse", "dividend", "pauze", "nieuws", "voorraad"];
+
+    function speel(soort) {
+      if (!geluidAan || !audio || audio.state !== "running" || !geluiden[soort]) return;
+      geluiden[soort]();
+    }
+
+    // Speel één geluid voor de nieuwe berichten sinds de vorige keer (het belangrijkste wint)
+    let laatsteNieuwsAt = null;
+    function speelNieuweGeluiden() {
+      const nieuws = state.news || [];
+      if (laatsteNieuwsAt === null) { laatsteNieuwsAt = nieuws[0] ? nieuws[0].at : ""; return; }
+      const nieuw = [];
+      for (const n of nieuws) { if (n.at === laatsteNieuwsAt) break; nieuw.push(n); }
+      if (!nieuw.length) return;
+      laatsteNieuwsAt = nieuws[0].at;
+      const soorten = nieuw.map((n) => n.soort || "nieuws");
+      const kies = voorrang.find((v) => soorten.includes(v));
+      if (kies) speel(kies);
+    }
+
+    // --- Nieuwsticker ---
+
+    let vorigeTicker = "";
+    function renderTicker() {
+      const koersen = aandelen.map((a) => {
+        const d = state.prices[a] - state.previous[a];
+        const pijl = d > 0 ? `<b class="op">▲ +${d}</b>` : d < 0 ? `<b class="neer">▼ ${d}</b>` : "";
+        return `<span>${esc(a)} ${euro(state.prices[a])} ${pijl}</span>`;
+      }).join("");
+      const koppen = (state.news || []).slice(0, 5).map((n) => `<span class="kop">📰 ${esc(n.titel)}</span>`).join('<span class="sep">•</span>');
+      const html = koersen + '<span class="sep">|</span>' + koppen + '<span class="sep">|</span>';
+      if (html === vorigeTicker) return;
+      vorigeTicker = html;
+      const band = $("#ticker");
+      band.innerHTML = html + html; // twee keer, zodat de band naadloos doorloopt
+      // Snelheid: ongeveer 120 pixels per seconde, hoe lang de tekst ook is
+      requestAnimationFrame(() => {
+        band.style.animationDuration = Math.max(20, band.scrollWidth / 2 / 120) + "s";
+      });
+    }
+
+    // --- Prijzen voor het eindscherm ---
+
+    function prijzen() {
+      const groepen = state.groups.map((g) => ({ ...g, stats: g.stats || {} }));
+      const lijst = [];
+      // Geeft de groep(en) met de hoogste waarde terug (bij gelijkspel allemaal)
+      const beste = (waarde, minimaal = 1) => {
+        const scores = groepen.map((g) => ({ g, w: waarde(g) })).filter((x) => x.w !== null && x.w >= minimaal);
+        if (!scores.length) return null;
+        const top = Math.max(...scores.map((x) => x.w));
+        return { namen: scores.filter((x) => x.w === top).map((x) => x.g.name), w: top, g: scores.find((x) => x.w === top).g };
+      };
+      const voeg = (icoon, titel, r, waarom) => { if (r) lijst.push({ icoon, titel, wie: r.namen.map(esc).join(" & "), waarom: waarom(r) }); };
+
+      voeg("💎", "Beste deal", beste((g) => g.stats.besteDeal ? g.stats.besteDeal.bedrag : null),
+        (r) => `${euro(r.w)} winst op één verkoop (${esc(r.g.stats.besteDeal.aandeel)})`);
+      voeg("😭", "Grootste pechvogel", beste((g) => g.stats.slechtsteDeal ? -g.stats.slechtsteDeal.bedrag : null),
+        (r) => `${euro(r.w)} verlies op één verkoop (${esc(r.g.stats.slechtsteDeal.aandeel)})`);
+      voeg("🏦", "Bankkoning", beste((g) => g.stats.geleend || 0), (r) => `${euro(r.w)} geleend bij de bank`);
+      voeg("🎰", "Durfal", beste((g) => g.stats.grootsteAankoop ? g.stats.grootsteAankoop.bedrag : null),
+        (r) => `kocht in één keer ${r.g.stats.grootsteAankoop.aantal}× ${esc(r.g.stats.grootsteAankoop.aandeel)} voor ${euro(r.w)}`);
+      voeg("🔁", "Handelsgek", beste((g) => g.stats.transacties || 0), (r) => `${r.w} keer gekocht of verkocht`);
+      voeg("💰", "Dividendkampioen", beste((g) => g.dividend || 0), (r) => `${euro(r.w)} dividend ontvangen`);
+      voeg("🏅", "Opdrachtenkampioen", beste((g) => g.stats.beloningen || 0), (r) => `${euro(r.w)} aan beloningen verdiend`);
+      voeg("⚠️", "Boetekoning", beste((g) => g.stats.boetes || 0), (r) => `${euro(r.w)} aan boetes betaald`);
+      voeg("🚀", "Hoogvlieger", beste((g) => g.stats.hoogsteWaarde || 0), (r) => `was tijdens het spel ooit ${euro(r.w)} waard`);
+
+      // Aandeel van de dag en flop van de dag (t.o.v. de eerste koers in de grafiek)
+      const begin = (state.history && state.history[0] && state.history[0].p) || {};
+      const groei = aandelen.filter((a) => begin[a]).map((a) => ({ a, p: Math.round(((state.prices[a] - begin[a]) / begin[a]) * 100) }));
+      if (groei.length) {
+        const top = groei.reduce((x, y) => (y.p > x.p ? y : x));
+        const flop = groei.reduce((x, y) => (y.p < x.p ? y : x));
+        if (top.p > 0) lijst.push({ icoon: "📈", titel: "Aandeel van de dag", wie: esc(top.a), waarom: `steeg ${top.p}% tijdens het spel` });
+        if (flop.p < 0) lijst.push({ icoon: "📉", titel: "Flop van de dag", wie: esc(flop.a), waarom: `daalde ${-flop.p}% tijdens het spel` });
+      }
+      return lijst;
     }
 
     // --- Reservekopie op deze computer ---

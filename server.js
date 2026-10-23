@@ -249,7 +249,22 @@ function nieuweGroep(id, naam) {
     realized: 0,
     loan: 0,      // openstaande lening bij de bank
     dividend: 0,  // totaal ontvangen dividend
-    bonus: 0      // totaal van beloningen min boetes
+    bonus: 0,     // totaal van beloningen min boetes
+    stats: nieuweStats()
+  };
+}
+
+// Statistieken voor de prijzen op het eindscherm
+function nieuweStats() {
+  return {
+    besteDeal: null,      // { bedrag, aandeel } grootste winst op één verkoop
+    slechtsteDeal: null,  // { bedrag, aandeel } grootste verlies op één verkoop
+    grootsteAankoop: null,// { bedrag, aandeel, aantal }
+    geleend: 0,           // totaal geleend bij de bank
+    transacties: 0,       // aantal keer gekocht of verkocht
+    beloningen: 0,        // totaal aan beloningen
+    boetes: 0,            // totaal aan boetes
+    hoogsteWaarde: 0      // hoogste totale waarde tijdens het spel
   };
 }
 
@@ -369,6 +384,7 @@ function nieuwSpel(bron = "reset") {
     ],
     transactions: [],
     history: [{ t: Date.now(), p: { ...koersen } }],
+    vermogen: [],
     // Speeltijd. status: "vrij" (geen klok, handel open), "loopt", "pauze" of "gesloten"
     game: { status: "vrij", eind: null, rest: null },
     // Tijd (ms) dat er actief gespeeld is, voor dividend en rente
@@ -423,7 +439,8 @@ function schoonSpelstand(st) {
     realized: getal(g.realized),
     loan: getal(g.loan),
     dividend: getal(g.dividend),
-    bonus: getal(g.bonus)
+    bonus: getal(g.bonus),
+    stats: { ...nieuweStats(), ...(g.stats && typeof g.stats === "object" ? g.stats : {}) }
   }));
   if (!groepen.length || new Set(groepen.map((g) => g.id)).size !== groepen.length) return null;
 
@@ -441,6 +458,7 @@ function schoonSpelstand(st) {
     news: lijst(st.news).slice(0, 30),
     transactions: lijst(st.transactions).slice(0, 200),
     history: lijst(st.history).filter((h) => h && h.p).slice(-400),
+    vermogen: lijst(st.vermogen).filter((h) => h && h.w).slice(-400),
     game,
     klok: {
       actief: getal(st.klok && st.klok.actief),
@@ -541,7 +559,7 @@ function betaalDividend() {
   });
   if (iemand) {
     voegNieuwsToe("Dividend uitgekeerd!",
-      `Elke groep krijgt ${procent}% van de waarde van zijn aandelen uitbetaald.`, []);
+      `Elke groep krijgt ${procent}% van de waarde van zijn aandelen uitbetaald.`, [], "dividend");
   }
   return iemand;
 }
@@ -558,7 +576,7 @@ function rekenRente() {
       iemand = true;
     }
   });
-  if (iemand) voegNieuwsToe("De bank rekent rente", `Groepen met een lening betalen ${procent}% rente.`, []);
+  if (iemand) voegNieuwsToe("De bank rekent rente", `Groepen met een lening betalen ${procent}% rente.`, [], "rente");
   return iemand;
 }
 
@@ -614,7 +632,7 @@ setInterval(() => {
   if (state.game.status === "loopt" && nu >= state.game.eind) {
     state.game = { status: "gesloten", eind: null, rest: null };
     state.scherm = { einde: true };
-    voegNieuwsToe("De beurs is gesloten!", "De tijd is om. Bekijk de eindstand op het grote scherm.", []);
+    voegNieuwsToe("De beurs is gesloten!", "De tijd is om. Bekijk de eindstand op het grote scherm.", [], "einde");
     veranderd = true;
   }
 
@@ -677,7 +695,24 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+// Vermogensgrafiek: een punt zodra het totaal van een groep verandert
+function noteerVermogen() {
+  if (!state.vermogen) state.vermogen = [];
+  const w = Object.fromEntries(state.groups.map((g) => [g.id, Math.round(totaleWaarde(g))]));
+  state.groups.forEach((g) => {
+    const st = g.stats || (g.stats = nieuweStats());
+    if (w[g.id] > st.hoogsteWaarde) st.hoogsteWaarde = w[g.id];
+  });
+  const h = state.vermogen;
+  const laatste = h[h.length - 1];
+  if (laatste && Object.keys(w).length === Object.keys(laatste.w).length &&
+      Object.keys(w).every((id) => laatste.w[id] === w[id])) return;
+  h.push({ t: Date.now(), w });
+  if (h.length > 400) state.vermogen = h.filter((_, i) => i % 2 === 0 || i > h.length - 50);
+}
+
 function stuurUpdate() {
+  noteerVermogen();
   bewaarSpelstand();
   state.serverNow = Date.now(); // zodat telefoons met een afwijkende klok toch goed aftellen
   const volledig = "data: " + JSON.stringify(state) + "\n\n";
@@ -750,8 +785,10 @@ function leesBody(req, maxGrootte = 200000) {
   });
 }
 
-function voegNieuwsToe(titel, tekst, changes) {
-  state.news.unshift({ at: new Date().toISOString(), titel, tekst, changes });
+// soort bepaalt o.a. welk geluid het grote scherm laat horen:
+// nieuws, start, einde, krach, hausse, pauze, dividend, rente, voorraad, info
+function voegNieuwsToe(titel, tekst, changes, soort = "nieuws") {
+  state.news.unshift({ at: new Date().toISOString(), titel, tekst, changes, soort });
   state.news = state.news.slice(0, 30);
   noteerKoersen();
 }
@@ -843,7 +880,8 @@ function pasToeOpLopendSpel(body) {
     voegNieuwsToe(
       `Post ${naam} is gesloten`,
       `Alle aandelen ${naam} zijn terugbetaald tegen € ${oudePrijzen[naam]} per stuk.`,
-      []
+      [],
+      "info"
     );
   });
 }
@@ -1088,9 +1126,9 @@ const server = http.createServer(async (req, res) => {
       const vorige = state.news[0];
       if (vorige && vorige.voorraadPost === aandeel && Date.now() - Date.parse(vorige.at) < 60000) state.news.shift();
       const vrij = nieuw ? nieuw - bezit : null;
-      if (!nieuw) voegNieuwsToe(`Onbeperkt aandelen ${aandeel}!`, `Er zijn vanaf nu genoeg aandelen ${aandeel} voor iedereen.`, []);
-      else if (!oud || nieuw > oud) voegNieuwsToe(`Extra aandelen ${aandeel} vrijgegeven`, `Er zijn nu nog ${vrij} aandelen ${aandeel} te koop.`, []);
-      else voegNieuwsToe(`Minder aandelen ${aandeel} beschikbaar`, vrij > 0 ? `Er zijn nog maar ${vrij} aandelen ${aandeel} te koop.` : `De aandelen ${aandeel} zijn uitverkocht!`, []);
+      if (!nieuw) voegNieuwsToe(`Onbeperkt aandelen ${aandeel}!`, `Er zijn vanaf nu genoeg aandelen ${aandeel} voor iedereen.`, [], "voorraad");
+      else if (!oud || nieuw > oud) voegNieuwsToe(`Extra aandelen ${aandeel} vrijgegeven`, `Er zijn nu nog ${vrij} aandelen ${aandeel} te koop.`, [], "voorraad");
+      else voegNieuwsToe(`Minder aandelen ${aandeel} beschikbaar`, vrij > 0 ? `Er zijn nog maar ${vrij} aandelen ${aandeel} te koop.` : `De aandelen ${aandeel} zijn uitverkocht!`, [], "voorraad");
       state.news[0].voorraadPost = aandeel;
       stuurUpdate();
       return json(res, 200, { ok: true });
@@ -1200,7 +1238,8 @@ const server = http.createServer(async (req, res) => {
       voegNieuwsToe(
         krach ? "BEURSKRACH!" : "HAUSSE!",
         krach ? "Paniek op de beurs: alle aandelen kelderen." : "Feest op de beurs: alle aandelen schieten omhoog.",
-        changes
+        changes,
+        krach ? "krach" : "hausse"
       );
       stuurUpdate();
       return json(res, 200, { ok: true });
@@ -1217,13 +1256,13 @@ const server = http.createServer(async (req, res) => {
         if (!(minuten >= 1 && minuten <= 600)) return json(res, 400, { error: "Kies een speeltijd tussen 1 en 600 minuten." });
         state.game = { status: "loopt", eind: nu + minuten * 60000, rest: null };
         state.scherm = { einde: false };
-        voegNieuwsToe("De beurs is geopend!", `Er wordt ${minuten} minuten gehandeld. Succes!`, []);
+        voegNieuwsToe("De beurs is geopend!", `Er wordt ${minuten} minuten gehandeld. Succes!`, [], "start");
       } else if (body.actie === "pauze" && g.status === "loopt") {
         state.game = { status: "pauze", eind: null, rest: Math.max(0, g.eind - nu) };
-        voegNieuwsToe("De beurs is gepauzeerd", "Even geen handel mogelijk.", []);
+        voegNieuwsToe("De beurs is gepauzeerd", "Even geen handel mogelijk.", [], "pauze");
       } else if (body.actie === "hervat" && g.status === "pauze") {
         state.game = { status: "loopt", eind: nu + g.rest, rest: null };
-        voegNieuwsToe("De beurs gaat weer verder", "Er kan weer gehandeld worden.", []);
+        voegNieuwsToe("De beurs gaat weer verder", "Er kan weer gehandeld worden.", [], "start");
       } else if (body.actie === "verleng" && (g.status === "loopt" || g.status === "pauze")) {
         if (!(minuten >= -600 && minuten <= 600 && minuten !== 0)) return json(res, 400, { error: "Ongeldig aantal minuten." });
         if (g.status === "loopt") g.eind = Math.max(nu + 1000, g.eind + minuten * 60000);
@@ -1231,11 +1270,11 @@ const server = http.createServer(async (req, res) => {
       } else if (body.actie === "stop") {
         state.game = { status: "gesloten", eind: null, rest: null };
         state.scherm = { einde: true };
-        voegNieuwsToe("De beurs is gesloten!", "De handel is gestopt. Bekijk de eindstand op het grote scherm.", []);
+        voegNieuwsToe("De beurs is gesloten!", "De handel is gestopt. Bekijk de eindstand op het grote scherm.", [], "einde");
       } else if (body.actie === "heropen") {
         state.game = { status: "vrij", eind: null, rest: null };
         state.scherm = { einde: false };
-        voegNieuwsToe("De beurs is weer open", "Er kan weer gehandeld worden (zonder tijdslimiet).", []);
+        voegNieuwsToe("De beurs is weer open", "Er kan weer gehandeld worden (zonder tijdslimiet).", [], "start");
       } else {
         return json(res, 400, { error: "Dat kan nu niet." });
       }
@@ -1334,6 +1373,8 @@ const server = http.createServer(async (req, res) => {
       const echt = bedrag < 0 ? -Math.min(-bedrag, groep.cash) : bedrag;
       groep.cash += echt;
       groep.bonus = (groep.bonus || 0) + echt;
+      const st = groep.stats || (groep.stats = nieuweStats());
+      if (echt >= 0) st.beloningen += echt; else st.boetes += -echt;
       boek(groep, echt >= 0 ? "bonus" : "boete", { amount: echt, reason: reden, station });
 
       stuurUpdate();
@@ -1359,6 +1400,7 @@ const server = http.createServer(async (req, res) => {
         }
         groep.loan += bedrag;
         groep.cash += bedrag;
+        (groep.stats || (groep.stats = nieuweStats())).geleend += bedrag;
       } else if (body.action === "aflossen") {
         if (!groep.loan) return json(res, 400, { error: `${groep.name} heeft geen lening.` });
         if (bedrag > groep.loan) return json(res, 400, { error: `De lening is maar € ${groep.loan}.` });
@@ -1396,7 +1438,7 @@ const server = http.createServer(async (req, res) => {
       state = st;
       tips = Array.isArray(body.tips) ? body.tips.slice(0, 50) : [];
       werkRegelsBij();
-      voegNieuwsToe("Spelstand hersteld", "De beurs gaat verder waar hij gebleven was.", []);
+      voegNieuwsToe("Spelstand hersteld", "De beurs gaat verder waar hij gebleven was.", [], "info");
       stuurUpdate();
       return json(res, 200, { ok: true });
     }
@@ -1469,6 +1511,16 @@ const server = http.createServer(async (req, res) => {
         result: resultaat,  // winst (+) of verlies (-) (alleen bij verkoop)
         station
       });
+
+      const st = groep.stats || (groep.stats = nieuweStats());
+      st.transacties += 1;
+      if (actie === "buy" && (!st.grootsteAankoop || totaal > st.grootsteAankoop.bedrag)) {
+        st.grootsteAankoop = { bedrag: totaal, aandeel, aantal };
+      }
+      if (actie === "sell" && resultaat !== null) {
+        if (resultaat > 0 && (!st.besteDeal || resultaat > st.besteDeal.bedrag)) st.besteDeal = { bedrag: resultaat, aandeel };
+        if (resultaat < 0 && (!st.slechtsteDeal || resultaat < st.slechtsteDeal.bedrag)) st.slechtsteDeal = { bedrag: resultaat, aandeel };
+      }
 
       // Koers reageert op handel: kopen maakt duurder, verkopen goedkoper
       const impact = instellingen.regels.koersImpact;
