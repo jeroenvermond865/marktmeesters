@@ -114,6 +114,7 @@
     th { color: var(--muted); font-size: 13px; font-weight: 600; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tr.eerste td { color: var(--orange); font-weight: 900; }
+    .transaction small { color: var(--muted); }
 
     button, input, select {
       width: 100%;
@@ -208,11 +209,11 @@
           <div class="tag">TUSSENSTAND</div>
           <table>
             <thead>
-              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Totaal</th></tr>
+              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
             </thead>
             <tbody id="ranking"></tbody>
           </table>
-          <p class="status">Totaal = kasgeld + waarde van alle aandelen tegen de huidige koers.</p>
+          <p class="status">+/− = winst of verlies op alle aandelen (verkocht en nog in bezit). Totaal = kasgeld + waarde van alle aandelen tegen de huidige koers.</p>
         </div>
 
         <div class="panel">
@@ -311,6 +312,13 @@
       }).join("");
     }
 
+    function resultaatHtml(bedrag) {
+      const r = Math.round(bedrag);
+      if (r > 0) return `<span class="up">+${euro(r)}</span>`;
+      if (r < 0) return `<span class="down">−${euro(-r)}</span>`;
+      return `<span class="flat">€ 0</span>`;
+    }
+
     function renderTransacties(state) {
       const doel = document.querySelector("#transactions");
 
@@ -325,13 +333,17 @@
           <strong>${t.qty}× ${esc(t.stock)}</strong>
           à ${euro(t.price)} (${euro(t.total ?? t.price * t.qty)})
           ${t.station ? "bij post " + esc(t.station) : ""} · ${tijd(t.at)}
+          ${t.result !== null && t.result !== undefined
+            ? `<br><small>Gekocht à ${euro(t.avg)} → ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}</small>`
+            : ""}
         </div>`).join("");
     }
 
     function renderRanking(state) {
       const lijst = state.groups.map((g) => {
         const aandelenWaarde = aandelen.reduce((som, a) => som + (g.shares[a] || 0) * state.prices[a], 0);
-        return { ...g, totaal: g.cash + aandelenWaarde };
+        const open = aandelen.reduce((som, a) => som + ((g.shares[a] || 0) * state.prices[a] - ((g.cost && g.cost[a]) || 0)), 0);
+        return { ...g, totaal: g.cash + aandelenWaarde, resultaat: (g.realized || 0) + open };
       }).sort((a, b) => b.totaal - a.totaal);
 
       document.querySelector("#ranking").innerHTML = lijst.map((g, i) => `
@@ -339,6 +351,7 @@
           <td>${i + 1}</td>
           <td>${esc(g.name)}</td>
           <td class="num">${euro(g.cash)}</td>
+          <td class="num">${resultaatHtml(g.resultaat)}</td>
           <td class="num">${euro(g.totaal)}</td>
         </tr>`).join("");
     }

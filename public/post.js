@@ -62,6 +62,25 @@
     })[c]);
   }
 
+  // Bedrag met + of − en een kleur: groen voor winst, rood voor verlies
+  function resultaatHtml(bedrag) {
+    const r = Math.round(bedrag);
+    if (r > 0) return `<span class="winst">+${euro(r)}</span>`;
+    if (r < 0) return `<span class="verlies">−${euro(-r)}</span>`;
+    return `<span class="neutraal">€ 0</span>`;
+  }
+
+  function gemiddeld(groep, a) {
+    const aantal = groep.shares[a] || 0;
+    return aantal ? ((groep.cost && groep.cost[a]) || 0) / aantal : 0;
+  }
+
+  // Winst/verlies op aandelen die de groep nu nog heeft (als ze nu zouden verkopen)
+  function openResultaat(groep, a) {
+    const aantal = groep.shares[a] || 0;
+    return aantal ? state.prices[a] * aantal - ((groep.cost && groep.cost[a]) || 0) : 0;
+  }
+
   // --- Keuzeknoppen voor groep en actie (groter en sneller dan dropdowns op een telefoon) ---
 
   function tekenGroepKnoppen() {
@@ -118,6 +137,10 @@
     }
     if (gekozenActie === "sell" && groep && aantal > groep.shares[aandeel]) {
       waarschuwing = ` <span class="fout">— groep heeft er maar ${groep.shares[aandeel]}</span>`;
+    } else if (gekozenActie === "sell" && groep && aantal > 0) {
+      const gem = gemiddeld(groep, aandeel);
+      const r = (prijs - gem) * aantal;
+      waarschuwing = `<br>Gekocht voor gemiddeld ${euro(Math.round(gem))} → ${r >= 0 ? "winst" : "verlies"} op deze verkoop: <b>${resultaatHtml(r)}</b>`;
     }
 
     const werkwoord = gekozenActie === "buy" ? "koopt" : "verkoopt";
@@ -140,17 +163,28 @@
 
     groepen.innerHTML = state.groups.map((groep) => {
       const waarde = aandelen.reduce((som, a) => som + (groep.shares[a] || 0) * state.prices[a], 0);
+      const totaalOpen = aandelen.reduce((som, a) => som + openResultaat(groep, a), 0);
 
-      const bezit = aandelen.map((a) => `
-        <span class="${a === post ? "hier" : ""}">
-          ${esc(a)}: <b>${groep.shares[a] || 0}</b>
-        </span>`).join("");
+      const bezit = aandelen.map((a) => {
+        const aantal = groep.shares[a] || 0;
+        const detail = aantal
+          ? `<small>gekocht à ${euro(Math.round(gemiddeld(groep, a)))} · ${resultaatHtml(openResultaat(groep, a))}</small>`
+          : "";
+        return `
+        <span class="${a === post ? "hier" : ""} ${aantal ? "" : "leeg"}">
+          ${esc(a)}: <b>${aantal}</b> ${detail}
+        </span>`;
+      }).join("");
 
       return `
         <article class="groepkaart ${groep.id === gekozenGroep ? "gekozen" : ""}">
           <h3>${esc(groep.name)}</h3>
           <div class="kas">${euro(groep.cash)}</div>
           <div class="waarde">Totale waarde: ${euro(groep.cash + waarde)}</div>
+          <div class="resultaten">
+            <div>Op aandelen in bezit: <b>${resultaatHtml(totaalOpen)}</b></div>
+            <div>Op verkochte aandelen: <b>${resultaatHtml(groep.realized || 0)}</b></div>
+          </div>
           <div class="bezit">${bezit}</div>
         </article>`;
     }).join("");
@@ -217,7 +251,13 @@
         return;
       }
 
-      melding.textContent = "✓ Transactie verwerkt (" + euro(inhoud.total) + ").";
+      if (inhoud.result === null || inhoud.result === undefined) {
+        melding.textContent = "✓ Gekocht voor " + euro(inhoud.total) + ".";
+      } else if (inhoud.result >= 0) {
+        melding.textContent = "✓ Verkocht voor " + euro(inhoud.total) + " — " + euro(inhoud.result) + " winst!";
+      } else {
+        melding.textContent = "✓ Verkocht voor " + euro(inhoud.total) + " — " + euro(-inhoud.result) + " verlies.";
+      }
       melding.className = "melding goed";
       aantalInput.value = 1;
       verwerkState(inhoud.state);

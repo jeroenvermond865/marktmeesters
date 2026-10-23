@@ -152,3 +152,21 @@ button.verkoop { background: var(--orange); }
 }
 
 [hidden] { display: none !important; }
+
+/* Winst en verlies */
+.winst { color: var(--green); font-weight: 800; }
+.verlies { color: var(--red); font-weight: 800; }
+.neutraal { color: var(--muted); }
+
+.resultaten {
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #ffffff1a;
+  border-bottom: 1px solid #ffffff1a;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.bezit small { display: block; font-size: 13px; line-height: 1.3; margin-bottom: 4px; }
+.bezit span.leeg { opacity: .55; }

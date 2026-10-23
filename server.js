@@ -141,8 +141,28 @@ function nieuweGroep(id, naam) {
     id,
     name: naam,
     cash: instellingen.startkapitaal,
-    shares: Object.fromEntries(postNamen().map((a) => [a, 0]))
+    shares: Object.fromEntries(postNamen().map((a) => [a, 0])),
+    // cost: wat de groep in totaal betaald heeft voor de aandelen die ze NU nog hebben
+    cost: Object.fromEntries(postNamen().map((a) => [a, 0])),
+    // realized: winst/verlies op alles wat al verkocht is
+    realized: 0
   };
+}
+
+// Gemiddelde aankoopprijs per aandeel (0 als de groep er geen heeft)
+function gemiddeldePrijs(groep, aandeel) {
+  const aantal = groep.shares[aandeel] || 0;
+  return aantal ? (groep.cost[aandeel] || 0) / aantal : 0;
+}
+
+// Aandelen weghalen bij een groep en de winst/het verlies daarop teruggeven
+function verkoopUitBezit(groep, aandeel, aantal, koers) {
+  const gemiddeld = gemiddeldePrijs(groep, aandeel);
+  const resultaat = Math.round((koers - gemiddeld) * aantal);
+  groep.shares[aandeel] -= aantal;
+  groep.cost[aandeel] = groep.shares[aandeel] ? (groep.cost[aandeel] || 0) - gemiddeld * aantal : 0;
+  groep.realized = (groep.realized || 0) + resultaat;
+  return resultaat;
 }
 
 // --- Nieuws ---
@@ -305,17 +325,26 @@ function pasToeOpLopendSpel(body) {
 
     groep.name = instellingen.groepen[i];
 
-    // Aandelen van gesloten posten terugbetalen tegen de laatste koers
+    groep.cost = groep.cost || {};
+
+    // Aandelen van gesloten posten terugbetalen tegen de laatste koers (telt als verkoop)
     gesloten.forEach((naam) => {
-      groep.cash += (groep.shares[naam] || 0) * oudePrijzen[naam];
+      const aantal = groep.shares[naam] || 0;
+      if (aantal) {
+        groep.cash += aantal * oudePrijzen[naam];
+        verkoopUitBezit(groep, naam, aantal, oudePrijzen[naam]);
+      }
     });
 
     const nieuweShares = {};
-    postNamen().forEach((naam) => { nieuweShares[naam] = 0; });
+    const nieuweCost = {};
+    postNamen().forEach((naam) => { nieuweShares[naam] = 0; nieuweCost[naam] = 0; });
     Object.entries(hernoemd).forEach(([oud, nieuw]) => {
       nieuweShares[nieuw] = groep.shares[oud] || 0;
+      nieuweCost[nieuw] = groep.cost[oud] || 0;
     });
     groep.shares = nieuweShares;
+    groep.cost = nieuweCost;
     return groep;
   });
 
@@ -592,6 +621,9 @@ const server = http.createServer(async (req, res) => {
 
       const koers = state.prices[aandeel];
       const totaal = koers * aantal;
+      groep.cost = groep.cost || {};
+      let resultaat = null;
+      let gemiddeld = null;
 
       if (actie === "buy") {
         if (groep.cash < totaal) {
@@ -601,14 +633,16 @@ const server = http.createServer(async (req, res) => {
         }
         groep.cash -= totaal;
         groep.shares[aandeel] += aantal;
+        groep.cost[aandeel] = (groep.cost[aandeel] || 0) + totaal;
       } else if (actie === "sell") {
         if (groep.shares[aandeel] < aantal) {
           return json(res, 400, {
             error: `${groep.name} heeft maar ${groep.shares[aandeel]} aandelen ${aandeel}.`
           });
         }
+        gemiddeld = Math.round(gemiddeldePrijs(groep, aandeel));
         groep.cash += totaal;
-        groep.shares[aandeel] -= aantal;
+        resultaat = verkoopUitBezit(groep, aandeel, aantal, koers);
       } else {
         return json(res, 400, { error: "Kies kopen of verkopen." });
       }
@@ -621,12 +655,14 @@ const server = http.createServer(async (req, res) => {
         qty: aantal,
         price: koers,
         total: totaal,
+        avg: gemiddeld,     // gemiddelde aankoopprijs (alleen bij verkoop)
+        result: resultaat,  // winst (+) of verlies (-) (alleen bij verkoop)
         station
       });
       state.transactions = state.transactions.slice(0, 100);
 
       stuurUpdate();
-      return json(res, 200, { ok: true, total: totaal, state });
+      return json(res, 200, { ok: true, total: totaal, result: resultaat, state });
     }
 
     serveFile(req, res);
