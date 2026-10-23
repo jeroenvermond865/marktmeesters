@@ -32,7 +32,8 @@ const beginKoersen = {
 };
 
 const STARTKAPITAAL = 1000;
-const AANTAL_GROEPEN = 4;
+// Namen van de groepen. Voeg een naam toe of haal er een weg om het aantal groepen te veranderen.
+const GROEPSNAMEN = ["Groep 755", "Groep 1063", "Groep 1766", "Groep 1798"];
 const MIN_KOERS = 10;
 const MAX_KOERS = 250;
 
@@ -60,9 +61,9 @@ function nieuwSpel() {
   state = {
     prices: { ...beginKoersen },
     previous: { ...beginKoersen },
-    groups: Array.from({ length: AANTAL_GROEPEN }, (_, i) => ({
+    groups: GROEPSNAMEN.map((naam, i) => ({
       id: i + 1,
-      name: "Groep " + (i + 1),
+      name: naam,
       cash: STARTKAPITAAL,
       shares: Object.fromEntries(aandelen.map((a) => [a, 0]))
     })),
