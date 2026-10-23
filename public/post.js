@@ -22,7 +22,6 @@
   let gekozenActie = "buy";
   let modus = "handel";
   let bonusSoort = "plus";
-  let bankActie = "lenen";
 
   function naarLogin() {
     location.href = "/login.html?terug=" + encodeURIComponent(location.pathname + location.search);
@@ -153,14 +152,6 @@
     });
   });
 
-  document.querySelectorAll("[data-bank]").forEach((knop) => {
-    knop.addEventListener("click", () => {
-      bankActie = knop.dataset.bank;
-      zetActief("[data-bank]", knop);
-      werkAllesBij();
-    });
-  });
-
   document.querySelectorAll("[data-stap]").forEach((knop) => {
     knop.addEventListener("click", () => {
       aantalInput.value = Math.max(1, (Number(aantalInput.value) || 0) + Number(knop.dataset.stap));
@@ -175,7 +166,7 @@
     werkAllesBij();
   });
 
-  [aandeelSelect, aantalInput, $("#bonusBedrag"), $("#bonusReden"), $("#bankBedrag")].forEach((el) => {
+  [aandeelSelect, aantalInput, $("#bonusBedrag"), $("#bonusReden")].forEach((el) => {
     el.addEventListener("input", werkAllesBij);
   });
 
@@ -233,38 +224,12 @@
     $("#bonusKnop").className = plus ? "" : "verkoop";
   }
 
-  function werkBankBij() {
-    const groep = gekozen();
-    if (!groep) return;
-    const r = state.rules || {};
-    const bedrag = Math.round(Number($("#bankBedrag").value)) || 0;
-    const lening = groep.loan || 0;
-    const max = r.maxLening || 0;
-
-    let tekst = `Lening nu: <b>${euro(lening)}</b>`;
-    if (max) tekst += ` · nog te lenen: <b>${euro(Math.max(0, max - lening))}</b>`;
-    if (r.renteProcent) tekst += `<br><small>Rente: ${r.renteProcent}% van de lening, elke ${r.renteInterval} minuten.</small>`;
-
-    if (bankActie === "lenen") {
-      if (!max) tekst = `<span class="fout">Lenen staat uit in de spelinstellingen.</span>`;
-      else if (lening + bedrag > max) tekst += `<br><span class="fout">Zoveel kan deze groep niet lenen.</span>`;
-    } else {
-      if (!lening) tekst += `<br><span class="fout">Deze groep heeft geen lening.</span>`;
-      else if (bedrag > lening) tekst += `<br><span class="fout">De lening is maar ${euro(lening)}.</span>`;
-      else if (bedrag > groep.cash) tekst += `<br><span class="fout">Te weinig kasgeld (${euro(groep.cash)}).</span>`;
-    }
-    $("#bankSamenvatting").innerHTML = tekst;
-    $("#bankKnop").textContent = bankActie === "lenen" ? `🏦 Leen ${euro(bedrag)}` : `🏦 Los ${euro(bedrag)} af`;
-    $("#bankKnop").className = bankActie === "lenen" ? "" : "verkoop";
-  }
-
   function werkAllesBij() {
     if (!state || !post) return;
     werkHandelBij();
     werkBonusBij();
-    werkBankBij();
     const open = handelOpen();
-    [verwerkKnop, $("#bonusKnop"), $("#bankKnop")].forEach((k) => { k.disabled = !open; });
+    [verwerkKnop, $("#bonusKnop")].forEach((k) => { k.disabled = !open; });
   }
 
   // --- Weergave ---
@@ -427,11 +392,6 @@
         : `✓ Boete van ${euro(-inhoud.amount)} gegeven.` +
           (inhoud.amount !== inhoud.gevraagd ? " (Meer kasgeld had de groep niet.)" : "");
     });
-  });
-
-  $("#bankKnop").addEventListener("click", () => {
-    verstuur("/api/bank", { action: bankActie, amount: $("#bankBedrag").value }, $("#bankKnop"), () =>
-      bankActie === "lenen" ? "✓ Geld geleend." : "✓ Lening (deels) afgelost.");
   });
 
   // --- Live updates ---

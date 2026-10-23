@@ -61,6 +61,10 @@
     .tip-plan[hidden] { display: none; }
     .tip-rij { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .tip-rij label { font-weight: 600; color: var(--muted); font-size: 13px; }
+    [data-bank].actief { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+    [data-bank="aflossen"].actief { background: var(--orange); border-color: var(--orange); }
+    .melding { margin: 0; font-weight: 800; min-height: 0; }
+    .fout { color: var(--red); }
     .tip-snel button.actief { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
     .tiplijst { font-size: 14px; color: var(--muted); }
     .tiplijst > div { padding: 10px 0; border-bottom: 1px solid #ffffff12; }
@@ -174,22 +178,27 @@
       <div class="tiplijst" id="tipLijst"></div>
     </section>
 
+    <!-- Bank -->
+    <section class="kaart">
+      <h2>🏦 Bank</h2>
+      <select id="bankGroep" aria-label="Groep"></select>
+      <div class="tweeknop">
+        <button type="button" class="stil actief" data-bank="lenen">Lenen</button>
+        <button type="button" class="stil" data-bank="aflossen">Aflossen</button>
+      </div>
+      <label class="status" style="display:grid;gap:6px">Bedrag (€)
+        <input id="bankBedrag" type="number" min="1" step="1" value="100" inputmode="numeric">
+      </label>
+      <p class="status" id="bankInfo"></p>
+      <button type="button" id="bankKnop">🏦 Leen € 100</button>
+      <p class="melding" id="bankMelding"></p>
+    </section>
+
     <!-- Groot scherm -->
     <section class="kaart">
       <h2>📺 Groot scherm</h2>
       <p class="status" id="schermStatus"></p>
       <button type="button" class="stil" id="eindeKnop">🏆 Eindscherm tonen</button>
-    </section>
-
-    <!-- Stand -->
-    <section class="kaart">
-      <h2>🏁 Tussenstand</h2>
-      <table><tbody id="stand"></tbody></table>
-    </section>
-
-    <section class="kaart">
-      <h2>📈 Koersen</h2>
-      <div class="koersen" id="koersen"></div>
     </section>
 
     <section class="kaart">
@@ -421,6 +430,59 @@
       try { await post("/api/tip", data); $("#tipTekst").value = ""; } catch (e) { alert(e.message); }
     });
 
+    // --- Bank ---
+
+    let bankActie = "lenen";
+
+    document.querySelectorAll("[data-bank]").forEach((knop) => knop.addEventListener("click", () => {
+      bankActie = knop.dataset.bank;
+      document.querySelectorAll("[data-bank]").forEach((k) => k.classList.toggle("actief", k === knop));
+      $("#bankMelding").textContent = "";
+      tekenBank();
+    }));
+    ["#bankGroep", "#bankBedrag"].forEach((sel) => {
+      $(sel).addEventListener("input", tekenBank);
+      $(sel).addEventListener("change", tekenBank);
+    });
+
+    function tekenBank() {
+      if (!state) return;
+      const groep = state.groups.find((g) => String(g.id) === $("#bankGroep").value);
+      if (!groep) return;
+      const r = state.rules || {};
+      const bedrag = Math.round(Number($("#bankBedrag").value)) || 0;
+      const lening = groep.loan || 0;
+      const max = r.maxLening || 0;
+
+      let tekst = `${esc(groep.name)}: kasgeld <b>${euro(groep.cash)}</b> · lening <b>${euro(lening)}</b>`;
+      if (max) tekst += ` · nog te lenen <b>${euro(Math.max(0, max - lening))}</b>`;
+      if (r.renteProcent) tekst += `<br>Rente: ${r.renteProcent}% van de lening, elke ${r.renteInterval} minuten.`;
+      if (bankActie === "lenen") {
+        if (!max) tekst = `<span class="fout">Lenen staat uit in de spelinstellingen.</span>`;
+        else if (lening + bedrag > max) tekst += `<br><span class="fout">Zoveel kan deze groep niet lenen.</span>`;
+      } else if (!lening) tekst += `<br><span class="fout">Deze groep heeft geen lening.</span>`;
+      else if (bedrag > lening) tekst += `<br><span class="fout">De lening is maar ${euro(lening)}.</span>`;
+      else if (bedrag > groep.cash) tekst += `<br><span class="fout">Te weinig kasgeld.</span>`;
+
+      $("#bankInfo").innerHTML = tekst;
+      $("#bankKnop").textContent = bankActie === "lenen" ? `🏦 Leen ${euro(bedrag)}` : `🏦 Los ${euro(bedrag)} af`;
+      $("#bankKnop").className = bankActie === "lenen" ? "" : "oranje";
+      $("#bankKnop").disabled = !handelOpen();
+    }
+
+    $("#bankKnop").addEventListener("click", async () => {
+      const groep = state.groups.find((g) => String(g.id) === $("#bankGroep").value);
+      try {
+        await post("/api/bank", { group: Number($("#bankGroep").value), action: bankActie, amount: $("#bankBedrag").value });
+        $("#bankMelding").textContent = bankActie === "lenen"
+          ? `✓ ${groep.name} heeft geld geleend.` : `✓ ${groep.name} heeft (een deel) afgelost.`;
+        $("#bankMelding").className = "melding up";
+      } catch (e) {
+        $("#bankMelding").textContent = e.message;
+        $("#bankMelding").className = "melding fout";
+      }
+    });
+
     // --- Groot scherm ---
 
     $("#eindeKnop").addEventListener("click", () => doe("/api/scherm", { einde: !(state.scherm && state.scherm.einde) }));
@@ -459,6 +521,7 @@
       vulKeuze($("#nAandeel"), aandelen.map((x) => [x, x]));
       vulKeuze($("#tipAandeel"), aandelen.map((x) => [x, x]));
       vulKeuze($("#tipGroep"), state.groups.map((g) => [g.id, g.name]));
+      vulKeuze($("#bankGroep"), state.groups.map((g) => [g.id, g.name]));
       werkTipVoorbeeldBij();
       tekenTips();
 
@@ -468,19 +531,7 @@
         ? "Het grote scherm toont nu het eindscherm met podium."
         : "Het grote scherm toont de koersen. Bij sluiten van de beurs komt het eindscherm vanzelf.";
 
-      // Tussenstand: kasgeld + aandelen − lening
-      const lijst = state.groups.map((g) => ({
-        ...g,
-        totaal: g.cash - (g.loan || 0) + aandelen.reduce((s, x) => s + (g.shares[x] || 0) * state.prices[x], 0)
-      })).sort((x, y) => y.totaal - x.totaal);
-      $("#stand").innerHTML = lijst.map((g, i) =>
-        `<tr class="${i === 0 ? "eerste" : ""}"><td>${i + 1}.</td><td>${esc(g.name)}</td><td class="num">${euro(g.totaal)}</td></tr>`).join("");
-
-      $("#koersen").innerHTML = aandelen.map((x) => {
-        const d = state.prices[x] - state.previous[x];
-        return `<div class="koers"><small>${esc(x)}</small><b>${euro(state.prices[x])}</b>
-          ${d ? `<span class="${d > 0 ? "up" : "down"}"> ${d > 0 ? "▲+" : "▼"}${d}</span>` : ""}</div>`;
-      }).join("");
+      tekenBank();
 
       tekenKlok();
     }

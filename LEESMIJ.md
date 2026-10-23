@@ -85,6 +85,8 @@ Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naa
 - **`/beurs.html` – groot scherm** (beamer/tv): koersen, grafiek, tussenstand, nieuws, transacties en de aftelklok. Er staan geen knoppen op.
 - **`/leiding.html` – bediening** (op je telefoon): alle knoppen van de beursleiding.
 
+Lenen en aflossen bij de **bank** gaat alleen via de bediening. Over een lening wordt rente berekend.
+
 Automatisch nieuws en geplande tips lopen op de server, dus ook als je telefoon op slot gaat.
 Het eindscherm verschijnt vanzelf als de beurs sluit; je kunt het ook vanaf de bediening tonen of verbergen.
 
@@ -103,12 +105,11 @@ Het eindscherm verschijnt vanzelf als de beurs sluit; je kunt het ook vanaf de b
 
 ## Posten
 
-Een post heeft drie tabbladen:
+Een post heeft twee tabbladen:
 
 - **Handel**: kopen en verkopen. Met **voorraad** zijn er maar zoveel aandelen per post (op = op).
   Met **koersreactie** wordt een aandeel duurder als er veel gekocht wordt, en goedkoper bij verkopen.
 - **Beloning / boete**: geef een groep geld voor een opdracht, of een boete (nooit onder € 0).
-- **Bank**: lenen en aflossen. Over een lening wordt rente berekend.
 
 Groepen krijgen regelmatig **dividend** over de aandelen die ze hebben.
 De eindstand telt: kasgeld + aandelen − lening.

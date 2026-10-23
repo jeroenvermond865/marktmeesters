@@ -34,10 +34,9 @@
 
     <div class="indeling">
       <section class="transactiekaart">
-        <div class="keuze drie" id="modusKnoppen">
+        <div class="keuze twee" id="modusKnoppen">
           <button type="button" class="keuzeknop actief" data-modus="handel">Handel</button>
           <button type="button" class="keuzeknop" data-modus="bonus">Beloning / boete</button>
-          <button type="button" class="keuzeknop" data-modus="bank">Bank</button>
         </div>
 
         <div class="keuze" id="groepKnoppen"></div>
@@ -89,20 +88,6 @@
           </label>
           <p class="samenvatting" id="bonusSamenvatting"></p>
           <button id="bonusKnop">Geef beloning</button>
-        </div>
-
-        <!-- Bank -->
-        <div class="modus" data-voor="bank" hidden>
-          <div class="keuze twee">
-            <button type="button" class="keuzeknop actief" data-bank="lenen">Lenen</button>
-            <button type="button" class="keuzeknop" data-bank="aflossen">Aflossen</button>
-          </div>
-          <label>
-            Bedrag (€)
-            <input id="bankBedrag" type="number" min="1" step="1" value="100" inputmode="numeric">
-          </label>
-          <p class="samenvatting" id="bankSamenvatting"></p>
-          <button id="bankKnop">Lenen</button>
         </div>
 
         <p class="melding" id="melding"></p>

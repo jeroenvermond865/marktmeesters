@@ -990,7 +990,7 @@ const server = http.createServer(async (req, res) => {
       const alleenBeurs =
         url.startsWith("/api/news/") || url === "/api/reset" || url === "/api/settings" ||
         url === "/api/game" || url.startsWith("/api/tip") || url === "/api/backup" || url === "/api/herstel" ||
-        url === "/api/auto" || url === "/api/scherm";
+        url === "/api/auto" || url === "/api/scherm" || url === "/api/bank";
       if (alleenBeurs && rol !== "beurs") {
         return json(res, 403, { error: "Alleen de beursleiding mag dit doen." });
       }
@@ -1309,7 +1309,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, amount: echt, gevraagd: bedrag, state });
     }
 
-    // Bank: lenen en aflossen
+    // Bank: lenen en aflossen (alleen via de bediening van de beursleiding)
     if (req.method === "POST" && url === "/api/bank") {
       if (!handelOpen()) return json(res, 400, { error: geslotenMelding() });
       const body = await leesBody(req);
