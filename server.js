@@ -688,14 +688,16 @@ function stuurUpdate() {
 
 // Wat een lid te zien krijgt: de lijst met groepen, de koersen, het nieuws
 // en (als er een groep gekozen is) alleen de gegevens van de eigen groep.
+// Leden zien bewust NIET de koersen van aandelen die ze niet hebben, en geen nieuws:
+// daarvoor moeten ze naar het grote scherm op de middenpost.
 function spelerWeergave(groepId) {
   const groep = state.groups.find((g) => g.id === groepId) || null;
+  const inBezitVanGroep = groep ? state.posts.filter((a) => (groep.shares[a] || 0) > 0) : [];
+  const alleen = (obj) => Object.fromEntries(inBezitVanGroep.map((a) => [a, obj[a]]));
   return {
     groepen: state.groups.map((g) => ({ id: g.id, name: g.name })),
-    posts: state.posts,
-    prices: state.prices,
-    previous: state.previous,
-    news: state.news.slice(0, 5),
+    posts: inBezitVanGroep,
+    prices: alleen(state.prices),
     groep,
     transactions: groep
       ? state.transactions.filter((t) => t.groupId === groep.id).slice(0, 15)
@@ -703,8 +705,6 @@ function spelerWeergave(groepId) {
     game: state.game,
     thema: state.thema,
     rules: state.rules,
-    supply: state.supply,
-    held: Object.fromEntries(state.posts.map((a) => [a, inBezit(a)])),
     serverNow: Date.now(),
     tips: groep
       ? tips.filter((t) => t.groupId === groep.id).slice(0, 5).map((t) => ({

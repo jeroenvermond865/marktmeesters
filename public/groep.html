@@ -112,6 +112,7 @@
     .tip p { margin: 6px 0 0; font-size: 18px; font-weight: 700; }
     .tip small { color: var(--muted); }
     .tip.nieuw { animation: flits 1.5s ease-out; }
+    .hint { margin: 12px 2px 0; color: var(--muted); font-size: 14px; line-height: 1.4; }
     .tip-plan {
       display: flex;
       flex-wrap: wrap;
@@ -165,7 +166,7 @@
 
       <div id="tips"></div>
 
-      <section class="nieuwsbalk" id="nieuwsbalk"></section>
+      <p class="hint">📺 De koersen van de andere aandelen en het nieuws zie je op het grote scherm bij de middenpost.</p>
 
       <div class="kaart saldo">
         <div class="label">KASGELD</div>
@@ -183,10 +184,6 @@
         <div id="bezit"></div>
       </div>
 
-      <div class="kaart">
-        <h2>Koersen nu</h2>
-        <div id="koersen"></div>
-      </div>
 
       <div class="kaart">
         <h2>Jullie transacties</h2>
@@ -437,16 +434,6 @@
         : `<p class="leeg-tekst">Nog geen aandelen. Ga naar een post om te kopen!</p>` +
           (g.realized ? `<p class="leeg-tekst" style="margin-top:8px;font-size:14px">Al vastgezet met verkopen: <b>${resultaatHtml(g.realized)}</b></p>` : "");
 
-      // Koersen
-      $("#koersen").innerHTML = data.posts.map((a) => {
-        const verschil = data.prices[a] - data.previous[a];
-        const pijl = verschil > 0 ? `<span class="op">▲ +${verschil}</span>` : verschil < 0 ? `<span class="neer">▼ ${verschil}</span>` : "";
-        const totaal = (data.supply && data.supply[a]) || 0;
-        const vrij = totaal ? totaal - ((data.held && data.held[a]) || 0) : null;
-        const voorraad = vrij === null ? "" : vrij <= 0 ? `<small class="verlies">uitverkocht</small>` : `<small>nog ${vrij}</small>`;
-        return `<div class="koersrij"><span>${esc(a)}</span><span>${voorraad}${pijl} <b>${euro(data.prices[a])}</b></span></div>`;
-      }).join("");
-
       // Transacties
       $("#transacties").innerHTML = data.transactions.length
         ? data.transactions.map((t) => {
@@ -459,18 +446,6 @@
           }).join("")
         : `<p class="leeg-tekst">Nog geen transacties.</p>`;
 
-      // Laatste nieuws, met een flits als er iets nieuws is
-      const n = data.news[0];
-      if (n) {
-        const effecten = n.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ");
-        $("#nieuwsbalk").innerHTML = `<span class="label">LAATSTE NIEUWS</span><b>${esc(n.titel)}</b>${effecten ? " — " + effecten : ""}`;
-        if (vorigNieuws && vorigNieuws !== n.at) {
-          const balk = $("#nieuwsbalk");
-          balk.classList.remove("flits"); void balk.offsetWidth; balk.classList.add("flits");
-          if (navigator.vibrate) navigator.vibrate(150);
-        }
-        vorigNieuws = n.at;
-      }
     }
 
     // --- Live verbinding ---

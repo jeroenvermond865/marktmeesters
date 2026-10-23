@@ -59,10 +59,11 @@ Leden loggen in met het ledenwachtwoord en komen dan op **/groep.html**. Daar ki
 
 - kasgeld, totale waarde en winst/verlies;
 - welke aandelen ze hebben, wat ze ervoor betaald hebben en wat ze nu waard zijn;
-- de actuele koersen en het laatste nieuws;
+- de geheime tips voor hun groep, met wat er gaat gebeuren en een aftelling;
 - hun eigen transacties.
 
 Leden zien geen gegevens van andere groepen en kunnen niets invoeren.
+Ze zien ook **niet** de koersen van aandelen die ze niet hebben, en geen nieuws: daarvoor moeten ze naar het grote scherm op de middenpost.
 
 ## Spelinstellingen
 
