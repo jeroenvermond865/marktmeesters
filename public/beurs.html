@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beursleiding · Marktmeesters</title>
+  <style>
+    :root {
+      --bg: #071426;
+      --card: #10253d;
+      --cyan: #18d0e5;
+      --orange: #ff9d2e;
+      --white: #f7fafc;
+      --muted: #a9b8c8;
+      --green: #39d98a;
+      --red: #ff5c6c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #153451, var(--bg) 55%);
+      color: var(--white);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .wrap { max-width: 1400px; margin: auto; padding: 24px; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 56px); }
+
+    .tag { color: var(--cyan); font-weight: 800; letter-spacing: .14em; }
+
+    .clock {
+      padding: 12px 18px;
+      border: 1px solid #ffffff22;
+      border-radius: 14px;
+      background: #0008;
+      font-size: 24px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .verbinding { font-size: 13px; color: var(--muted); margin-top: 6px; text-align: right; }
+    .verbinding.weg { color: var(--red); }
+
+    .prices {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin: 26px 0;
+    }
+
+    .price {
+      padding: 18px;
+      border: 1px solid #2c506e;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #15324f, var(--card));
+      box-shadow: 0 12px 30px #0005;
+      transition: transform .3s;
+    }
+
+    .price.flits { transform: scale(1.04); }
+    .price h2 { margin: 0 0 10px; font-size: 17px; }
+    .value { font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .change { margin-top: 8px; font-weight: 800; }
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+    .flat { color: var(--muted); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.3fr .7fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 22px;
+      border: 1px solid #29445f;
+      border-radius: 20px;
+      background: #08172de6;
+    }
+
+    .panel + .panel { margin-top: 20px; }
+
+    .news-feed { max-height: 380px; overflow-y: auto; }
+    .news { padding: 15px 0; border-bottom: 1px solid #ffffff22; }
+    .news h2 { margin: 0 0 7px; }
+    .news p { margin: 0 0 10px; color: var(--muted); }
+    .news time { color: var(--muted); font-size: 13px; margin-left: 8px; font-weight: 400; }
+
+    .effect {
+      display: inline-block;
+      padding: 8px 11px;
+      border-radius: 8px;
+      background: var(--orange);
+      color: var(--bg);
+      font-weight: 800;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px 6px; text-align: left; border-bottom: 1px solid #ffffff22; }
+    th { color: var(--muted); font-size: 13px; font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr.eerste td { color: var(--orange); font-weight: 900; }
+
+    button, input, select {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      background: var(--cyan);
+      color: var(--bg);
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    button:hover { outline: 2px solid var(--white); }
+    button:disabled { opacity: .5; cursor: wait; }
+
+    input, select {
+      border: 1px solid #52708b;
+      background: #071426;
+      color: var(--white);
+      padding: 10px 12px;
+    }
+
+    .danger { margin-top: 12px; background: #5a2030; color: white; }
+
+    form { display: grid; gap: 10px; margin-top: 16px; }
+    form .rij { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+
+    .status { margin-top: 18px; color: var(--muted); line-height: 1.5; }
+
+    .transactions { margin-top: 20px; }
+    .transaction { padding: 12px 0; border-bottom: 1px solid #ffffff22; }
+
+    .auto { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); }
+    .auto input { width: auto; }
+    .auto select { width: auto; padding: 6px 8px; }
+
+    @media (max-width: 900px) {
+      .prices { grid-template-columns: repeat(2, 1fr); }
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="tag">SCOUTING HANDELSSPEL</div>
+        <h1>AANDELENBEURS NIEUWE VAART</h1>
+      </div>
+      <div>
+        <div class="clock" id="clock">00:00:00</div>
+        <div class="verbinding" id="verbinding">Verbinden…</div>
+      </div>
+    </header>
+
+    <section class="prices" id="prices"></section>
+
+    <section class="layout">
+      <div>
+        <div class="panel">
+          <div class="tag">NIEUWS</div>
+          <div class="news-feed" id="newsFeed"></div>
+
+          <div class="transactions">
+            <div class="tag">LAATSTE TRANSACTIES</div>
+            <div id="transactions">Nog geen transacties.</div>
+          </div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <div class="tag">TUSSENSTAND</div>
+          <table>
+            <thead>
+              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Totaal</th></tr>
+            </thead>
+            <tbody id="ranking"></tbody>
+          </table>
+          <p class="status">Totaal = kasgeld + waarde van alle aandelen tegen de huidige koers.</p>
+        </div>
+
+        <div class="panel">
+          <h2 style="margin-top:0">Beursleiding</h2>
+
+          <button id="randomButton">Willekeurig nieuws</button>
+
+          <label class="auto">
+            <input type="checkbox" id="autoNieuws">
+            Automatisch nieuws elke
+            <select id="autoInterval">
+              <option value="120">2 min</option>
+              <option value="180" selected>3 min</option>
+              <option value="300">5 min</option>
+              <option value="600">10 min</option>
+            </select>
+          </label>
+          <div class="status" id="autoStatus"></div>
+
+          <form id="eigenNieuws">
+            <div class="tag">EIGEN NIEUWSBERICHT</div>
+            <input id="nTitel" placeholder="Kop, bijv. 'Kapotte peddel gevonden'" maxlength="100" required>
+            <input id="nTekst" placeholder="Toelichting (optioneel)" maxlength="300">
+            <div class="rij">
+              <select id="nAandeel"></select>
+              <input id="nDiff" type="number" placeholder="+/- €" required>
+            </div>
+            <button type="submit">Plaats nieuws</button>
+          </form>
+
+          <button class="danger" id="resetButton">Reset spel</button>
+
+          <p class="status">
+            Koersen, kasgeld en nieuws staan op de server. Deze pagina mag je gerust herladen zonder dat er iets verloren gaat.
+          </p>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
+
+    const namen = {
+      Eiland: "Aandeel in het eiland",
+      Sleper: "Aandeel in de sleper",
+      Gebouw: "Aandeel in het gebouw",
+      Loods: "Aandeel in de loods",
+      Lelievletten: "Aandeel in de lelievletten"
+    };
+
+    let laatsteKoersen = null;
+
+    // Tekst veilig in HTML zetten (voor eigen nieuwsberichten)
+    function esc(tekst) {
+      return String(tekst).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[c]);
+    }
+
+    function euro(bedrag) {
+      return "€ " + Number(bedrag).toLocaleString("nl-NL");
+    }
+
+    function tijd(iso) {
+      return new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function renderKoersen(state) {
+      document.querySelector("#prices").innerHTML = aandelen.map((key) => {
+        const waarde = state.prices[key];
+        const verschil = waarde - state.previous[key];
+        const klasse = verschil > 0 ? "up" : verschil < 0 ? "down" : "flat";
+        const teken = verschil > 0 ? "▲ +" : verschil < 0 ? "▼ " : "";
+        const flits = laatsteKoersen && laatsteKoersen[key] !== waarde ? " flits" : "";
+
+        return `
+          <article class="price${flits}">
+            <h2>${namen[key]}</h2>
+            <div class="value">€ ${waarde}</div>
+            <div class="change ${klasse}">${teken}${verschil} sinds vorig nieuws</div>
+          </article>`;
+      }).join("");
+
+      laatsteKoersen = { ...state.prices };
+      setTimeout(() => {
+        document.querySelectorAll(".price.flits").forEach((el) => el.classList.remove("flits"));
+      }, 400);
+    }
+
+    function renderNieuws(state) {
+      document.querySelector("#newsFeed").innerHTML = state.news.map((item) => {
+        const effect = item.changes.length
+          ? item.changes.map((c) => `${namen[c.stock]} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ")
+          : "Geen prijswijziging";
+
+        return `
+          <article class="news">
+            <h2>${esc(item.titel)}<time>${tijd(item.at)}</time></h2>
+            ${item.tekst ? `<p>${esc(item.tekst)}</p>` : ""}
+            <div class="effect">${effect}</div>
+          </article>`;
+      }).join("");
+    }
+
+    function renderTransacties(state) {
+      const doel = document.querySelector("#transactions");
+
+      if (!state.transactions.length) {
+        doel.textContent = "Nog geen transacties.";
+        return;
+      }
+
+      doel.innerHTML = state.transactions.slice(0, 8).map((t) => `
+        <div class="transaction">
+          <strong>${t.group}</strong> ${t.action === "buy" ? "kocht" : "verkocht"}
+          <strong>${t.qty}× ${t.stock}</strong>
+          à ${euro(t.price)} (${euro(t.total ?? t.price * t.qty)})
+          ${t.station ? "bij post " + t.station : ""} · ${tijd(t.at)}
+        </div>`).join("");
+    }
+
+    function renderRanking(state) {
+      const lijst = state.groups.map((g) => {
+        const aandelenWaarde = aandelen.reduce((som, a) => som + g.shares[a] * state.prices[a], 0);
+        return { ...g, totaal: g.cash + aandelenWaarde };
+      }).sort((a, b) => b.totaal - a.totaal);
+
+      document.querySelector("#ranking").innerHTML = lijst.map((g, i) => `
+        <tr class="${i === 0 ? "eerste" : ""}">
+          <td>${i + 1}</td>
+          <td>${g.name}</td>
+          <td class="num">${euro(g.cash)}</td>
+          <td class="num">${euro(g.totaal)}</td>
+        </tr>`).join("");
+    }
+
+    function render(state) {
+      renderKoersen(state);
+      renderNieuws(state);
+      renderTransacties(state);
+      renderRanking(state);
+    }
+
+    async function post(url, data) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data || {})
+      });
+      if (res.status === 401) {
+        location.href = "/login.html?terug=/beurs.html";
+        throw new Error("Niet ingelogd.");
+      }
+      const inhoud = await res.json();
+      if (!res.ok) throw new Error(inhoud.error || "Er ging iets mis.");
+      return inhoud;
+    }
+
+    // --- Knoppen ---
+
+    const randomButton = document.querySelector("#randomButton");
+
+    async function willekeurigNieuws() {
+      randomButton.disabled = true;
+      try {
+        await post("/api/news/random");
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        randomButton.disabled = false;
+      }
+    }
+
+    randomButton.addEventListener("click", willekeurigNieuws);
+
+    document.querySelector("#resetButton").addEventListener("click", async () => {
+      if (!confirm("Weet je het zeker? Alle koersen, kasgeld, aandelen en transacties gaan terug naar het begin.")) return;
+      try {
+        await post("/api/reset");
+        laatsteKoersen = null;
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    const nAandeel = document.querySelector("#nAandeel");
+    aandelen.forEach((a) => nAandeel.add(new Option(namen[a], a)));
+
+    document.querySelector("#eigenNieuws").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await post("/api/news/custom", {
+          titel: document.querySelector("#nTitel").value,
+          tekst: document.querySelector("#nTekst").value,
+          stock: nAandeel.value,
+          diff: document.querySelector("#nDiff").value
+        });
+        event.target.reset();
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    // --- Automatisch nieuws ---
+
+    let autoTimer = null;
+    let volgendeOm = 0;
+    const autoStatus = document.querySelector("#autoStatus");
+
+    function planVolgende() {
+      const seconden = Number(document.querySelector("#autoInterval").value);
+      volgendeOm = Date.now() + seconden * 1000;
+    }
+
+    document.querySelector("#autoNieuws").addEventListener("change", (e) => {
+      if (e.target.checked) {
+        planVolgende();
+        autoTimer = setInterval(() => {
+          if (Date.now() >= volgendeOm) {
+            willekeurigNieuws();
+            planVolgende();
+          }
+          const over = Math.max(0, Math.round((volgendeOm - Date.now()) / 1000));
+          autoStatus.textContent = `Volgend nieuws over ${Math.floor(over / 60)}:${String(over % 60).padStart(2, "0")}`;
+        }, 1000);
+      } else {
+        clearInterval(autoTimer);
+        autoStatus.textContent = "";
+      }
+    });
+
+    document.querySelector("#autoInterval").addEventListener("change", () => {
+      if (autoTimer) planVolgende();
+    });
+
+    // --- Klok en live verbinding ---
+
+    function klok() {
+      document.querySelector("#clock").textContent = new Date().toLocaleTimeString("nl-NL");
+    }
+    setInterval(klok, 1000);
+    klok();
+
+    const verbinding = document.querySelector("#verbinding");
+    const live = new EventSource("/api/events");
+
+    live.onopen = () => {
+      verbinding.textContent = "● Live verbonden";
+      verbinding.className = "verbinding";
+    };
+    live.onerror = () => {
+      verbinding.textContent = "● Verbinding weg, opnieuw proberen…";
+      verbinding.className = "verbinding weg";
+      fetch("/api/me").then((r) => {
+        if (r.status === 401) location.href = "/login.html?terug=/beurs.html";
+      }).catch(() => {});
+    };
+    live.onmessage = (event) => render(JSON.parse(event.data));
+  </script>
+</body>
+</html>

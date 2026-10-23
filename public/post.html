@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handelspost · Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+</head>
+<body>
+  <main>
+    <div class="topbalk">
+      <a class="back" href="/">← Alle posten</a>
+      <span class="verbinding" id="verbinding">Verbinden…</span>
+    </div>
+
+    <p class="eyebrow" id="subtitel">MARKTMEESTERS</p>
+    <h1 id="titel">Handelspost</h1>
+
+    <section class="koerskaart">
+      <span>Actuele koers</span>
+      <strong id="koers">€ –</strong>
+    </section>
+
+    <section class="nieuwsbalk" id="nieuwsbalk"></section>
+
+    <div class="indeling">
+      <section class="transactiekaart">
+        <h2>Transactie invoeren</h2>
+
+        <div class="keuze" id="groepKnoppen"></div>
+
+        <div class="keuze twee">
+          <button type="button" class="keuzeknop actief" data-actie="buy">Kopen</button>
+          <button type="button" class="keuzeknop" data-actie="sell">Verkopen</button>
+        </div>
+
+        <label>
+          Aandeel
+          <select id="aandeel"></select>
+        </label>
+
+        <label>
+          Aantal aandelen
+          <div class="aantal">
+            <button type="button" class="klein" data-stap="-1">−</button>
+            <input id="aantal" type="number" min="1" value="1" inputmode="numeric">
+            <button type="button" class="klein" data-stap="1">+</button>
+          </div>
+        </label>
+
+        <p class="samenvatting" id="samenvatting"></p>
+
+        <button id="verwerk">Verwerk transactie</button>
+
+        <p class="melding" id="melding"></p>
+      </section>
+
+      <section>
+        <h2>Groepen</h2>
+        <p class="uitleg">Actueel kasgeld en aandelenbezit.</p>
+        <div id="groepen" class="groepen"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/post.js"></script>
+</body>
+</html>

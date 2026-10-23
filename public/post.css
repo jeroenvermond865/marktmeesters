@@ -1,0 +1,152 @@
+:root {
+  --bg: #071426;
+  --card: #10253d;
+  --cyan: #18d0e5;
+  --orange: #ff9d2e;
+  --white: #f7fafc;
+  --muted: #a9b8c8;
+  --green: #39d98a;
+  --red: #ff5c6c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #153451, var(--bg) 55%);
+  color: var(--white);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main { max-width: 1100px; margin: auto; padding: 20px 16px 40px; }
+
+.topbalk { display: flex; justify-content: space-between; align-items: center; }
+
+.back { color: var(--cyan); font-weight: 800; text-decoration: none; }
+
+.verbinding { font-size: 13px; color: var(--green); }
+.verbinding.weg { color: var(--red); }
+
+.eyebrow { margin: 24px 0 4px; color: var(--cyan); font-weight: 800; letter-spacing: .12em; }
+
+h1 { margin-top: 0; font-size: clamp(34px, 5vw, 60px); }
+h2 { margin-top: 0; }
+
+.koerskaart, .groepkaart, .transactiekaart, .nieuwsbalk {
+  border: 1px solid #29445f;
+  border-radius: 16px;
+  background: var(--card);
+}
+
+.koerskaart {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px;
+  font-size: 20px;
+}
+
+.koerskaart strong {
+  color: var(--green);
+  font-size: clamp(34px, 6vw, 54px);
+  font-variant-numeric: tabular-nums;
+}
+
+.koerskaart strong.down { color: var(--red); }
+
+.nieuwsbalk { margin-top: 14px; padding: 14px 18px; color: var(--muted); }
+.nieuwsbalk b { color: var(--white); }
+.nieuwsbalk .label { color: var(--orange); font-weight: 800; letter-spacing: .1em; margin-right: 10px; font-size: 13px; }
+.nieuwsbalk.flits { animation: flits 1.2s ease-out; }
+
+@keyframes flits {
+  0% { background: var(--orange); }
+  100% { background: var(--card); }
+}
+
+.indeling {
+  display: grid;
+  grid-template-columns: minmax(0, 480px) 1fr;
+  gap: 24px;
+  margin-top: 24px;
+  align-items: start;
+}
+
+.uitleg { color: var(--muted); }
+
+.groepen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+}
+
+.groepkaart { padding: 18px; }
+.groepkaart.gekozen { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.groepkaart h3 { margin: 0 0 10px; }
+
+.kas { color: var(--green); font-size: 30px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.waarde { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+.bezit { margin-top: 12px; color: var(--muted); line-height: 1.9; }
+.bezit span { display: block; }
+.bezit span.hier { color: var(--cyan); }
+.bezit b { color: var(--white); }
+
+.transactiekaart { display: grid; gap: 14px; padding: 22px; }
+
+label { display: grid; gap: 7px; font-weight: 800; }
+
+input, select, button {
+  width: 100%;
+  border-radius: 9px;
+  padding: 12px;
+  font: inherit;
+}
+
+input, select {
+  border: 1px solid #52708b;
+  background: #071426;
+  color: var(--white);
+}
+
+button {
+  border: 0;
+  background: var(--cyan);
+  color: var(--bg);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+button:hover { outline: 2px solid var(--white); }
+button:disabled { opacity: .5; cursor: wait; }
+button.verkoop { background: var(--orange); }
+
+.keuze { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.keuze.twee { grid-template-columns: 1fr 1fr; }
+
+.keuzeknop {
+  background: #071426;
+  color: var(--white);
+  border: 1px solid #52708b;
+  font-weight: 700;
+}
+
+.keuzeknop.actief { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+.keuze.twee .keuzeknop.actief[data-actie="sell"] { background: var(--orange); border-color: var(--orange); }
+
+.aantal { display: grid; grid-template-columns: 52px 1fr 52px; gap: 8px; }
+.aantal input { text-align: center; font-size: 20px; font-weight: 800; }
+.klein { font-size: 22px; padding: 8px; }
+
+.samenvatting { margin: 0; color: var(--muted); line-height: 1.5; min-height: 24px; }
+.samenvatting b { color: var(--white); }
+.fout { color: var(--red); }
+
+.melding { min-height: 24px; margin: 0; font-weight: 800; }
+.melding.goed { color: var(--green); }
+.melding.fout { color: var(--red); }
+
+@media (max-width: 800px) {
+  .indeling { grid-template-columns: 1fr; }
+}

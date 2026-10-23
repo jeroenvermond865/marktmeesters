@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+  <style>
+    .lijst { display: grid; gap: 12px; margin-top: 24px; }
+    .lijst a {
+      display: block;
+      padding: 20px;
+      border: 1px solid #29445f;
+      border-radius: 16px;
+      background: var(--card);
+      color: var(--white);
+      font-size: 22px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .lijst a:hover { border-color: var(--cyan); }
+    .lijst a.beurs { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">SCOUTING HANDELSSPEL</p>
+    <h1>Marktmeesters</h1>
+    <p class="uitleg">Kies welk scherm dit apparaat moet tonen.</p>
+
+    <nav class="lijst">
+      <a class="beurs" href="/beurs.html">Beursleiding (groot scherm)</a>
+      <a href="/post.html?post=Eiland">Post Eiland</a>
+      <a href="/post.html?post=Sleper">Post Sleper</a>
+      <a href="/post.html?post=Gebouw">Post Gebouw</a>
+      <a href="/post.html?post=Loods">Post Loods</a>
+      <a href="/post.html?post=Lelievletten">Post Lelievletten</a>
+    </nav>
+
+    <p class="uitleg" style="margin-top:28px">
+      Ingelogd als <b id="rol">…</b> · <a class="back" href="#" id="uitloggen">Uitloggen</a>
+    </p>
+  </main>
+
+  <script>
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        document.querySelector("#rol").textContent = data.rol === "beurs" ? "beursleiding" : "post";
+        if (data.rol !== "beurs") document.querySelector(".beurs").remove();
+      })
+      .catch(() => {});
+
+    document.querySelector("#uitloggen").addEventListener("click", async (e) => {
+      e.preventDefault();
+      await fetch("/api/logout", { method: "POST" });
+      location.href = "/login.html";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inloggen · Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+  <style>
+    .inlog { max-width: 420px; margin: 8vh auto 0; }
+    .inlog form { display: grid; gap: 14px; padding: 22px; border: 1px solid #29445f; border-radius: 16px; background: var(--card); }
+  </style>
+</head>
+<body>
+  <main class="inlog">
+    <p class="eyebrow">SCOUTING HANDELSSPEL</p>
+    <h1>Marktmeesters</h1>
+
+    <form id="form">
+      <label>
+        Wachtwoord
+        <input id="wachtwoord" type="password" autocomplete="current-password" required autofocus>
+      </label>
+      <button type="submit" id="knop">Inloggen</button>
+      <p class="melding fout" id="melding"></p>
+    </form>
+
+    <p class="uitleg">Vraag het wachtwoord aan de spelleiding. Posten en beursleiding hebben elk een eigen wachtwoord.</p>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    let terug = params.get("terug") || "/";
+    // Alleen terugsturen naar een pagina op deze eigen site
+    if (!terug.startsWith("/") || terug.startsWith("//")) terug = "/";
+
+    document.querySelector("#form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const knop = document.querySelector("#knop");
+      const melding = document.querySelector("#melding");
+      knop.disabled = true;
+      melding.textContent = "";
+
+      try {
+        const res = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wachtwoord: document.querySelector("#wachtwoord").value })
+        });
+        const inhoud = await res.json();
+
+        if (!res.ok) {
+          melding.textContent = inhoud.error || "Inloggen mislukt.";
+          return;
+        }
+
+        // Een post die naar de beurs wilde, gaat naar de startpagina
+        if (inhoud.rol === "post" && terug.startsWith("/beurs")) terug = "/";
+        location.href = terug;
+      } catch {
+        melding.textContent = "De server is niet bereikbaar.";
+      } finally {
+        knop.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
