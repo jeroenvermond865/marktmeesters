@@ -6,7 +6,7 @@
   <title>Spelinstellingen · Marktmeesters</title>
   <link rel="stylesheet" href="/post.css">
   <style>
-    main { max-width: 760px; }
+    main { max-width: 820px; }
 
     .kaart {
       display: grid;
@@ -19,7 +19,7 @@
     }
 
     .kaart h2 { margin: 0; }
-    #groepen, #posten { display: grid; gap: 10px; }
+    #groepen, #posten, #nieuwsLijst { display: grid; gap: 10px; }
 
     .rij {
       display: grid;
@@ -28,7 +28,7 @@
       align-items: center;
     }
 
-    .rij.post { grid-template-columns: 1fr 110px 130px 48px; }
+    .rij.post { grid-template-columns: 1fr 100px 90px 130px 48px; }
 
     .info { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .info.nieuw { color: var(--cyan); }
@@ -49,12 +49,25 @@
     }
 
     .twee { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .regels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+    .regels label span { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
 
-    .knoppen { display: grid; gap: 10px; margin-top: 18px; }
+    .knoppen {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 12px 0;
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+    }
     .knoppen .tweede { background: var(--orange); }
+    .knoppen .melding { grid-column: 1 / -1; }
 
     .klein-knoppen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .klein-knoppen button, .klein-knoppen label.knop {
+    .klein-knoppen button, .klein-knoppen label.knop, .nieuwsbalk-knoppen button {
       background: #071426;
       color: var(--white);
       border: 1px solid #52708b;
@@ -68,12 +81,41 @@
 
     .opmerking { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
-    @media (max-width: 560px) {
-      .rij.post { grid-template-columns: 1fr 90px 48px; }
+    /* Nieuwsberichten */
+    .nieuwsbalk-knoppen { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+    .nieuwsbalk-knoppen .verzin { background: var(--orange); color: var(--bg); border-color: var(--orange); }
+
+    details.bericht {
+      border: 1px solid #29445f;
+      border-radius: 12px;
+      background: #0b1d33;
+    }
+    details.bericht[open] { border-color: var(--cyan); }
+    details.bericht summary {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      padding: 12px 14px;
+      cursor: pointer;
+      list-style: none;
+    }
+    details.bericht summary::-webkit-details-marker { display: none; }
+    details.bericht summary b { flex: 1; }
+    details.bericht summary small { color: var(--muted); white-space: nowrap; }
+    details.bericht.nieuw summary b::after { content: " · nieuw"; color: var(--orange); font-weight: 600; font-size: 13px; }
+    .bericht-inhoud { display: grid; gap: 10px; padding: 0 14px 14px; }
+    .effectrij { display: grid; grid-template-columns: 1fr 80px 80px 44px; gap: 8px; align-items: center; }
+    .effectrij .verwijder { padding: 6px; font-size: 16px; }
+    .effectkop { display: grid; grid-template-columns: 1fr 80px 80px 44px; gap: 8px; color: var(--muted); font-size: 12px; }
+    .op { color: var(--green); }
+    .neer { color: var(--red); }
+
+    @media (max-width: 600px) {
+      .rij.post { grid-template-columns: 1fr 80px 70px 44px; }
       .rij { grid-template-columns: 1fr 48px; }
       .rij > .info { grid-column: 1 / -1; grid-row: 2; }
-      .rij.post .info { grid-column: 1 / -1; grid-row: 2; }
       .kop.info-kop { display: none; }
+      .knoppen { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -97,21 +139,58 @@
       <h2>Posten (aandelen)</h2>
       <p class="opmerking">
         Elke post is ook een aandeel. Een hernoemde post houdt zijn koers en de aandelen van de groepen.
-        Een nieuwe post start direct op zijn beginwaarde. Verwijder je een post, dan krijgen de groepen hun aandelen terugbetaald tegen de laatste koers.
+        Verwijder je een post, dan krijgen de groepen hun aandelen terugbetaald tegen de laatste koers.
+        <b>Voorraad</b> = hoeveel aandelen er van die post maximaal in omloop zijn (0 = onbeperkt).
       </p>
       <div class="rij post">
         <span class="kop">Naam</span>
         <span class="kop">Beginwaarde €</span>
+        <span class="kop">Voorraad</span>
         <span class="kop info-kop">Nu</span>
         <span></span>
       </div>
       <div id="posten"></div>
       <button type="button" class="toevoegen" id="postToevoegen">+ Post toevoegen</button>
-      <p class="opmerking">De beginwaarde van een bestaande post geldt vanaf de volgende keer dat het spel opnieuw begint.</p>
+      <p class="opmerking">De beginwaarde van een bestaande post geldt vanaf de volgende keer dat het spel opnieuw begint. Voorraad gaat direct in.</p>
     </section>
 
     <section class="kaart">
-      <h2>Koersgrenzen</h2>
+      <h2>Spelregels</h2>
+      <div class="regels">
+        <label>Speelduur (minuten)
+          <span>Voorstel bij het starten van de klok</span>
+          <input type="number" data-regel="speelduur" step="1" inputmode="numeric">
+        </label>
+        <label>Dividend (%)
+          <span>Van de koers, per aandeel in bezit. 0 = uit</span>
+          <input type="number" data-regel="dividendProcent" step="0.5" inputmode="decimal">
+        </label>
+        <label>Dividend elke (minuten)
+          <span>Hoe vaak het dividend wordt uitbetaald</span>
+          <input type="number" data-regel="dividendInterval" step="1" inputmode="numeric">
+        </label>
+        <label>Koersreactie op handel (%)
+          <span>Per gekocht/verkocht aandeel. 0 = uit</span>
+          <input type="number" data-regel="koersImpact" step="0.5" inputmode="decimal">
+        </label>
+        <label>Maximaal lenen (€)
+          <span>Per groep bij de bank. 0 = lenen uit</span>
+          <input type="number" data-regel="maxLening" step="1" inputmode="numeric">
+        </label>
+        <label>Rente (%)
+          <span>Op de openstaande lening. 0 = geen rente</span>
+          <input type="number" data-regel="renteProcent" step="0.5" inputmode="decimal">
+        </label>
+        <label>Rente elke (minuten)
+          <span>Hoe vaak de rente wordt bijgeteld</span>
+          <input type="number" data-regel="renteInterval" step="1" inputmode="numeric">
+        </label>
+      </div>
+      <p class="opmerking">Dividend en rente lopen alleen als de beurs open is (niet tijdens een pauze of na sluiting).</p>
+    </section>
+
+    <section class="kaart">
+      <h2>Koersgrenzen en startgeld</h2>
       <div class="twee">
         <label>
           Minimale koers (€)
@@ -122,16 +201,46 @@
           <input type="number" id="maxKoers" min="2" step="1" inputmode="numeric">
         </label>
       </div>
-      <p class="opmerking">Geen enkel aandeel kan lager of hoger komen dan deze grenzen. Gaat direct in: koersen die er nu buiten liggen, worden bijgesteld.</p>
-    </section>
-
-    <section class="kaart">
-      <h2>Startgeld</h2>
       <label>
         Kasgeld per groep aan het begin (€)
         <input type="number" id="startkapitaal" min="0" max="1000000" step="1" inputmode="numeric">
       </label>
-      <p class="opmerking">Geldt voor nieuwe groepen en vanaf de volgende keer dat het spel opnieuw begint.</p>
+      <p class="opmerking">De koersgrenzen gaan direct in. Het startgeld geldt voor nieuwe groepen en vanaf de volgende keer dat het spel opnieuw begint.</p>
+    </section>
+
+    <section class="kaart">
+      <h2>Nieuwsberichten <small class="opmerking" id="nieuwsAantal"></small></h2>
+      <p class="opmerking">
+        Deze berichten kiest de knop "Willekeurig nieuws". Het effect is een percentage van de koers: bij <b>van -20 tot -8</b> daalt de koers 8 tot 20%.
+        Kies <b>Willekeurige post</b> om een bericht bij elke post te laten passen; zet dan <b>{post}</b> in de kop of tekst voor de naam.
+      </p>
+      <div class="nieuwsbalk-knoppen">
+        <button type="button" class="verzin" id="verzin">🎲 Verzin een bericht</button>
+        <button type="button" id="nieuwBericht">+ Zelf een bericht schrijven</button>
+        <button type="button" id="standaardNieuws">Standaardberichten terugzetten</button>
+      </div>
+      <input type="search" id="zoekNieuws" placeholder="Zoek in berichten…">
+      <div id="nieuwsLijst"></div>
+    </section>
+
+    <section class="kaart">
+      <h2>Bewaren en terugzetten</h2>
+      <p class="opmerking">
+        <b>Spelstand</b>: alles (instellingen, kasgeld, aandelen, nieuws, tijd). De beurscomputer maakt hier ook zelf automatisch een kopie van.
+        Op Render gratis kan alles verdwijnen bij een herstart; met deze knoppen zet je het terug.
+      </p>
+      <div class="klein-knoppen">
+        <button type="button" id="downloadStand">Download spelstand</button>
+        <label class="knop">
+          Spelstand terugzetten
+          <input type="file" id="uploadStand" accept=".json,application/json">
+        </label>
+        <button type="button" id="download">Download alleen instellingen</button>
+        <label class="knop">
+          Instellingen inladen
+          <input type="file" id="upload" accept=".json,application/json">
+        </label>
+      </div>
     </section>
 
     <div class="knoppen">
@@ -139,30 +248,17 @@
       <button type="button" class="tweede" id="opslaanReset">Opslaan en spel opnieuw beginnen</button>
       <p class="melding" id="melding"></p>
     </div>
-
-    <section class="kaart">
-      <h2>Instellingen bewaren</h2>
-      <p class="opmerking">
-        Op de gratis versie van Render kunnen opgeslagen instellingen verdwijnen als de server herstart.
-        Download ze daarom na het aanpassen, dan kun je ze later met één klik terugzetten.
-      </p>
-      <div class="klein-knoppen">
-        <button type="button" id="download">Download instellingen</button>
-        <label class="knop">
-          Instellingen inladen
-          <input type="file" id="upload" accept=".json,application/json">
-        </label>
-      </div>
-    </section>
   </main>
 
   <script>
     const $ = (sel) => document.querySelector(sel);
 
     let groepRijen = [];   // { id (null = nieuw), name, cash, aandelen }
-    let postRijen = [];    // { id (oude naam, null = nieuw), naam, beginKoers, koers, inBezit }
+    let postRijen = [];    // { id (oude naam, null = nieuw), naam, beginKoers, voorraad, koers, inBezit }
+    let berichten = [];    // { titel, tekst, effecten: [{ post, min, max }], nieuw }
     let opgeslagen = null; // laatst geladen gegevens van de server
     let limieten = { maxGroepen: 20, maxPosten: 12 };
+    let standaardBerichten = [];
 
     function euro(bedrag) {
       return "€ " + Number(bedrag).toLocaleString("nl-NL");
@@ -173,18 +269,24 @@
       $("#melding").className = "melding " + (goed ? "goed" : "fout");
     }
 
-    function maakKnopWeg(lijst, i, teken) {
-      const weg = document.createElement("button");
-      weg.type = "button";
-      weg.className = "verwijder";
-      weg.textContent = "×";
-      weg.title = "Verwijderen";
-      weg.disabled = lijst.length <= 1;
-      weg.addEventListener("click", () => {
-        lijst.splice(i, 1);
-        teken();
-      });
+    function maak(tag, eigenschappen = {}, ...kinderen) {
+      const el = document.createElement(tag);
+      Object.assign(el, eigenschappen);
+      el.append(...kinderen);
+      return el;
+    }
+
+    function knopWeg(lijst, i, teken, minimum = 1) {
+      const weg = maak("button", { type: "button", className: "verwijder", textContent: "×", title: "Verwijderen" });
+      weg.disabled = lijst.length <= minimum;
+      weg.addEventListener("click", () => { lijst.splice(i, 1); teken(); });
       return weg;
+    }
+
+    function getalVeld(waarde, bijWijziging, stap = 1) {
+      const invoer = maak("input", { type: "number", step: stap, value: waarde, inputMode: "numeric" });
+      invoer.addEventListener("input", () => bijWijziging(invoer.value));
+      return invoer;
     }
 
     // --- Groepen ---
@@ -192,30 +294,14 @@
     function tekenGroepen() {
       const doel = $("#groepen");
       doel.innerHTML = "";
-
       groepRijen.forEach((rij, i) => {
-        const div = document.createElement("div");
-        div.className = "rij";
-
-        const invoer = document.createElement("input");
-        invoer.value = rij.name;
-        invoer.maxLength = 30;
-        invoer.placeholder = "Naam van de groep";
+        const invoer = maak("input", { value: rij.name, maxLength: 30, placeholder: "Naam van de groep" });
         invoer.addEventListener("input", () => { rij.name = invoer.value; });
-
-        const info = document.createElement("span");
-        if (rij.id === null) {
-          info.className = "info nieuw";
-          info.textContent = "nieuw";
-        } else {
-          info.className = "info";
-          info.textContent = euro(rij.cash) + " · " + rij.aandelen + " aand.";
-        }
-
-        div.append(invoer, info, maakKnopWeg(groepRijen, i, tekenGroepen));
-        doel.append(div);
+        const info = rij.id === null
+          ? maak("span", { className: "info nieuw", textContent: "nieuw" })
+          : maak("span", { className: "info", textContent: euro(rij.cash) + " · " + rij.aandelen + " aand." });
+        doel.append(maak("div", { className: "rij" }, invoer, info, knopWeg(groepRijen, i, tekenGroepen)));
       });
-
       $("#groepToevoegen").disabled = groepRijen.length >= limieten.maxGroepen;
     }
 
@@ -230,37 +316,23 @@
     function tekenPosten() {
       const doel = $("#posten");
       doel.innerHTML = "";
-
       postRijen.forEach((rij, i) => {
-        const div = document.createElement("div");
-        div.className = "rij post";
-
-        const naam = document.createElement("input");
-        naam.value = rij.naam;
-        naam.maxLength = 20;
-        naam.placeholder = "Naam van de post";
+        const naam = maak("input", { value: rij.naam, maxLength: 20, placeholder: "Naam van de post" });
         naam.addEventListener("input", () => { rij.naam = naam.value; });
+        naam.addEventListener("change", tekenNieuws); // keuzelijsten bij het nieuws bijwerken
 
-        const begin = document.createElement("input");
-        begin.type = "number";
-        begin.step = 1;
-        begin.value = rij.beginKoers;
-        begin.inputMode = "numeric";
-        begin.addEventListener("input", () => { rij.beginKoers = begin.value; });
+        const info = rij.id === null
+          ? maak("span", { className: "info nieuw", textContent: "nieuw" })
+          : maak("span", { className: "info", textContent: euro(rij.koers) + " · " + rij.inBezit + " in bezit" });
 
-        const info = document.createElement("span");
-        if (rij.id === null) {
-          info.className = "info nieuw";
-          info.textContent = "nieuw";
-        } else {
-          info.className = "info";
-          info.textContent = euro(rij.koers) + " · " + rij.inBezit + " in bezit";
-        }
-
-        div.append(naam, begin, info, maakKnopWeg(postRijen, i, tekenPosten));
-        doel.append(div);
+        doel.append(maak("div", { className: "rij post" },
+          naam,
+          getalVeld(rij.beginKoers, (w) => { rij.beginKoers = w; }),
+          getalVeld(rij.voorraad, (w) => { rij.voorraad = w; }),
+          info,
+          knopWeg(postRijen, i, () => { tekenPosten(); tekenNieuws(); })
+        ));
       });
-
       $("#postToevoegen").disabled = postRijen.length >= limieten.maxPosten;
     }
 
@@ -271,10 +343,12 @@
         id: null,
         naam: "Nieuwe post " + (postRijen.length + 1),
         beginKoers: Math.round((min + max) / 2.5),
+        voorraad: 20,
         koers: 0,
         inBezit: 0
       });
       tekenPosten();
+      tekenNieuws();
       focusLaatste("#posten");
     });
 
@@ -284,16 +358,211 @@
       if (laatste) { laatste.focus(); laatste.select(); }
     }
 
+    // --- Nieuwsberichten ---
+
+    function effectTekst(ef) {
+      const post = ef.post === "*" ? "willekeurige post" : ef.post;
+      const klasse = ef.max <= 0 ? "neer" : ef.min >= 0 ? "op" : "";
+      return `<span class="${klasse}">${post} ${ef.min}…${ef.max}%</span>`;
+    }
+
+    function postOpties(huidig) {
+      const namen = postRijen.map((p) => p.naam.trim()).filter(Boolean);
+      const select = maak("select");
+      select.add(new Option("🎲 Willekeurige post", "*"));
+      namen.forEach((n) => select.add(new Option(n, n)));
+      // Verwijst naar een post die (nog) niet bestaat? Toon hem toch, zodat er niets verloren gaat.
+      const bekend = huidig === "*" || namen.some((n) => n.toLowerCase() === String(huidig).toLowerCase());
+      if (!bekend) select.add(new Option(`⚠ ${huidig} (bestaat niet)`, huidig));
+      const exact = namen.find((n) => n.toLowerCase() === String(huidig).toLowerCase());
+      select.value = exact || huidig;
+      return select;
+    }
+
+    function tekenNieuws() {
+      const doel = $("#nieuwsLijst");
+      const zoek = $("#zoekNieuws").value.trim().toLowerCase();
+      const open = new Set([...doel.querySelectorAll("details[open]")].map((d) => d.dataset.index));
+      doel.innerHTML = "";
+
+      berichten.forEach((b, i) => {
+        if (zoek && !(b.titel + " " + b.tekst + " " + b.effecten.map((e) => e.post).join(" ")).toLowerCase().includes(zoek)) return;
+
+        const details = maak("details", { className: "bericht" + (b.nieuw ? " nieuw" : "") });
+        details.dataset.index = i;
+        if (open.has(String(i)) || b.openen) { details.open = true; b.openen = false; }
+
+        const samenvatting = maak("summary");
+        samenvatting.innerHTML = `<b></b><small></small>`;
+        samenvatting.querySelector("b").textContent = b.titel || "(geen kop)";
+        const werkSamenvattingBij = () => {
+          samenvatting.querySelector("small").innerHTML = b.effecten.map(effectTekst).join(" · ");
+        };
+        werkSamenvattingBij();
+
+        const titel = maak("input", { value: b.titel, maxLength: 100, placeholder: "Kop van het bericht" });
+        titel.addEventListener("input", () => { b.titel = titel.value; samenvatting.querySelector("b").textContent = b.titel || "(geen kop)"; });
+        const tekst = maak("input", { value: b.tekst, maxLength: 300, placeholder: "Toelichting (optioneel)" });
+        tekst.addEventListener("input", () => { b.tekst = tekst.value; });
+
+        const effecten = maak("div", { style: "display:grid;gap:8px" });
+        effecten.append(maak("div", { className: "effectkop", innerHTML: "<span>Post</span><span>Van %</span><span>Tot %</span><span></span>" }));
+        b.effecten.forEach((ef, j) => {
+          const post = postOpties(ef.post);
+          post.addEventListener("change", () => { ef.post = post.value; tekenNieuws(); });
+          // Alleen de samenvatting bijwerken, niet de hele lijst (anders verlies je je cursor)
+          const van = getalVeld(ef.min, (w) => { ef.min = Number(w); werkSamenvattingBij(); });
+          const tot = getalVeld(ef.max, (w) => { ef.max = Number(w); werkSamenvattingBij(); });
+          effecten.append(maak("div", { className: "effectrij" }, post, van, tot, knopWeg(b.effecten, j, tekenNieuws)));
+        });
+
+        const effectErbij = maak("button", { type: "button", className: "toevoegen", textContent: "+ Effect op nog een post" });
+        effectErbij.addEventListener("click", () => { b.effecten.push({ post: "*", min: 5, max: 15 }); tekenNieuws(); });
+        effectErbij.disabled = b.effecten.length >= 12;
+
+        const weg = maak("button", { type: "button", className: "verwijder", textContent: "Bericht verwijderen", style: "font-size:15px" });
+        weg.addEventListener("click", () => { berichten.splice(i, 1); tekenNieuws(); });
+
+        details.append(samenvatting, maak("div", { className: "bericht-inhoud" }, titel, tekst, effecten, effectErbij, weg));
+        doel.append(details);
+      });
+
+      $("#nieuwsAantal").textContent = `(${berichten.length})`;
+    }
+
+    $("#zoekNieuws").addEventListener("input", tekenNieuws);
+
+    $("#nieuwBericht").addEventListener("click", () => {
+      berichten.unshift({ titel: "", tekst: "", effecten: [{ post: "*", min: 10, max: 25 }], nieuw: true, openen: true });
+      $("#zoekNieuws").value = "";
+      tekenNieuws();
+      $("#nieuwsLijst input").focus();
+    });
+
+    $("#standaardNieuws").addEventListener("click", () => {
+      if (!confirm("Alle berichten vervangen door de standaardberichten? Eigen berichten gaan verloren (pas na Opslaan).")) return;
+      berichten = standaardBerichten.map((b) => JSON.parse(JSON.stringify(b)));
+      tekenNieuws();
+      melden("Standaardberichten teruggezet. Klik op Opslaan om ze te bewaren.", true);
+    });
+
+    // --- 🎲 Bericht verzinnen ---
+    // Combineert losse stukjes tot een nieuw bericht in het thema van scouting, water en de haven.
+
+    const kies = (lijst) => lijst[Math.floor(Math.random() * lijst.length)];
+    const tussen = (van, tot) => van + Math.floor(Math.random() * (tot - van + 1));
+
+    const goedNieuws = [
+      ["Recordopkomst bij {post}", "Nog nooit stonden er zoveel mensen in de rij bij {post}."],
+      ["{post} wint de wisselbeker", "Na een spannende finale gaat de beker mee naar {post}."],
+      ["Gratis pannenkoeken bij {post}", "Iedereen wil ineens naar {post}."],
+      ["{post} krijgt subsidie", "De gemeente maakt geld vrij voor {post}."],
+      ["Nieuwe vlag gehesen bij {post}", "Met een feestelijke ceremonie is {post} weer helemaal klaar voor de toekomst."],
+      ["Zonnepanelen op {post}", "{post} wekt voortaan zijn eigen stroom op en bespaart flink."],
+      ["Kampkoor zingt bij {post}", "Het optreden trekt publiek van heinde en verre."],
+      ["Schat gevonden bij {post}", "Bij het graven voor een vuurkuil stuitte men op een oude kist."],
+      ["{post} in de krant", "Een lovend artikel zet {post} op de kaart."],
+      ["Topweer voor {post}", "Strak blauwe lucht en windkracht 3: perfect voor {post}."],
+      ["Leiding van {post} haalt diploma", "Met nieuwe kennis kan {post} veel meer aan."],
+      ["Bevers adopteren {post}", "De jongste scouts beloven {post} elke week te helpen."],
+      ["Nieuwe kano's voor {post}", "Een sponsor schenkt een hele vloot aan {post}."],
+      ["Opa Henk doneert gereedschap aan {post}", "Een complete werkplaats verhuist naar {post}."],
+      ["Spooktocht bij {post} uitverkocht", "Alle kaartjes waren binnen een uur weg."]
+    ];
+    const slechtNieuws = [
+      ["Wespennest bij {post}", "Niemand durft nog in de buurt van {post} te komen."],
+      ["Stroomstoring bij {post}", "Alles ligt plat tot de elektricien er is."],
+      ["{post} vergeet de vergunning", "Een boete van de gemeente hangt {post} boven het hoofd."],
+      ["Kapotte kachel bij {post}", "Het wordt koud en ongezellig bij {post}."],
+      ["Dikke mist rond {post}", "Niemand kan {post} meer vinden."],
+      ["Verkeerde bestelling bij {post}", "In plaats van touw zijn er 500 rollen wc-papier geleverd."],
+      ["Muggenplaag bij {post}", "Bezoekers vluchten met jeukende bulten weg."],
+      ["{post} verliest de wisselbeker", "De concurrentie lacht {post} uit."],
+      ["Kampvuur bij {post} wil niet branden", "Nat hout en veel rook: de sfeer is ver te zoeken."],
+      ["Penningmeester van {post} op vakantie", "Niemand weet waar de pinpas ligt."],
+      ["Lekke band van de bus naar {post}", "Bezoekers staan urenlang stil langs de weg."],
+      ["Reiger steelt de lunch bij {post}", "Het hele team van {post} heeft honger."],
+      ["Zeil gescheurd bij {post}", "Een windvlaag maakte korte metten met het grootzeil."],
+      ["Kabouters verstoppen gereedschap bij {post}", "Er wordt al de hele ochtend gezocht."],
+      ["Waterleiding gesprongen bij {post}", "Alles staat blank bij {post}."]
+    ];
+    const dubbelNieuws = [
+      ["Ruzie tussen {a} en {b}", "{a} trekt aan het langste eind, {b} blijft beteuterd achter.", 1],
+      ["{a} neemt klanten over van {b}", "Bezoekers stappen massaal over van {b} naar {a}.", 1],
+      ["Samenwerking tussen {a} en {b}", "Samen staan ze sterker dan ooit.", 2],
+      ["Storm raakt {a} en {b}", "Takken op het pad en water in de schuur.", 0]
+    ];
+
+    function verzinBericht() {
+      const namen = postRijen.map((p) => p.naam.trim()).filter(Boolean);
+      const specifiek = namen.length && Math.random() < 0.6; // soms voor een vaste post, soms willekeurig
+      const keuze = Math.random();
+
+      if (namen.length >= 2 && keuze < 0.2) {
+        const [titel, tekst, soort] = kies(dubbelNieuws);
+        const a = kies(namen);
+        const b = kies(namen.filter((n) => n !== a));
+        const vul = (t) => t.replaceAll("{a}", a).replaceAll("{b}", b);
+        const sterk = tussen(10, 25);
+        const effecten = soort === 1
+          ? [{ post: a, min: sterk - 5, max: sterk + 5 }, { post: b, min: -sterk - 5, max: -sterk + 5 }]
+          : soort === 2
+            ? [{ post: a, min: 8, max: 20 }, { post: b, min: 8, max: 20 }]
+            : [{ post: a, min: -22, max: -8 }, { post: b, min: -22, max: -8 }];
+        return { titel: vul(titel), tekst: vul(tekst), effecten };
+      }
+
+      const goed = keuze < 0.6;
+      const [titel, tekst] = kies(goed ? goedNieuws : slechtNieuws);
+      const post = specifiek ? kies(namen) : "*";
+      const vul = (t) => (post === "*" ? t : t.replaceAll("{post}", post));
+      const laag = goed ? tussen(6, 18) : -tussen(18, 32);
+      const hoog = goed ? laag + tussen(8, 16) : laag + tussen(8, 14);
+      return { titel: vul(titel), tekst: vul(tekst), effecten: [{ post, min: laag, max: hoog }] };
+    }
+
+    $("#verzin").addEventListener("click", () => {
+      const b = verzinBericht();
+      b.nieuw = true;
+      b.openen = true;
+      berichten.unshift(b);
+      $("#zoekNieuws").value = "";
+      tekenNieuws();
+      melden(`Verzonnen: "${b.titel}". Pas het gerust aan en klik op Opslaan.`, true);
+    });
+
     // --- Laden en opslaan ---
 
     function verzamel() {
+      const regels = {};
+      document.querySelectorAll("[data-regel]").forEach((invoer) => { regels[invoer.dataset.regel] = Number(invoer.value); });
       return {
         groepen: groepRijen.map((r) => ({ id: r.id, name: r.name.trim() })),
-        posten: postRijen.map((r) => ({ id: r.id, naam: r.naam.trim(), beginKoers: Number(r.beginKoers) })),
+        posten: postRijen.map((r) => ({
+          id: r.id, naam: r.naam.trim(), beginKoers: Number(r.beginKoers), voorraad: Number(r.voorraad)
+        })),
         startkapitaal: Number($("#startkapitaal").value),
         minKoers: Number($("#minKoers").value),
-        maxKoers: Number($("#maxKoers").value)
+        maxKoers: Number($("#maxKoers").value),
+        regels,
+        nieuws: berichten.map((b) => ({
+          titel: b.titel.trim(),
+          tekst: b.tekst.trim(),
+          effecten: b.effecten.map((ef) => ({ post: ef.post, min: Number(ef.min), max: Number(ef.max) }))
+        }))
       };
+    }
+
+    function vulFormulier(inst) {
+      $("#startkapitaal").value = inst.startkapitaal;
+      $("#minKoers").value = inst.minKoers;
+      $("#maxKoers").value = inst.maxKoers;
+      document.querySelectorAll("[data-regel]").forEach((invoer) => {
+        if (inst.regels && inst.regels[invoer.dataset.regel] !== undefined) invoer.value = inst.regels[invoer.dataset.regel];
+      });
+      if (Array.isArray(inst.nieuws)) {
+        berichten = inst.nieuws.map((b) => ({ titel: b.titel, tekst: b.tekst || "", effecten: b.effecten.map((e) => ({ ...e })) }));
+      }
     }
 
     async function laad() {
@@ -305,24 +574,23 @@
       const data = await res.json();
       opgeslagen = data;
       limieten = data.limieten;
+      standaardBerichten = data.standaardNieuws;
 
       groepRijen = data.groepen.map((g) => ({ ...g }));
-
-      const beginwaarden = Object.fromEntries(data.instellingen.posten.map((p) => [p.naam, p.beginKoers]));
+      const perPost = Object.fromEntries(data.instellingen.posten.map((p) => [p.naam, p]));
       postRijen = data.posten.map((p) => ({
         id: p.naam,
         naam: p.naam,
-        beginKoers: beginwaarden[p.naam] ?? p.koers,
+        beginKoers: perPost[p.naam] ? perPost[p.naam].beginKoers : p.koers,
+        voorraad: perPost[p.naam] ? perPost[p.naam].voorraad : 0,
         koers: p.koers,
         inBezit: p.inBezit
       }));
 
-      $("#startkapitaal").value = data.instellingen.startkapitaal;
-      $("#minKoers").value = data.instellingen.minKoers;
-      $("#maxKoers").value = data.instellingen.maxKoers;
-
+      vulFormulier(data.instellingen);
       tekenGroepen();
       tekenPosten();
+      tekenNieuws();
     }
 
     function waarschuwingen(data) {
@@ -383,21 +651,32 @@
 
     // --- Download / inladen ---
 
-    $("#download").addEventListener("click", () => {
-      const data = verzamel();
-      const bestand = {
-        groepen: data.groepen.map((g) => g.name),
-        posten: data.posten.map((p) => ({ naam: p.naam, beginKoers: p.beginKoers })),
-        startkapitaal: data.startkapitaal,
-        minKoers: data.minKoers,
-        maxKoers: data.maxKoers
-      };
-      const blob = new Blob([JSON.stringify(bestand, null, 2)], { type: "application/json" });
+    function downloadJson(naam, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "instellingen.json";
+      link.download = naam;
       link.click();
       URL.revokeObjectURL(link.href);
+    }
+
+    function datumNaam() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+    }
+
+    $("#download").addEventListener("click", () => {
+      const data = verzamel();
+      downloadJson("instellingen.json", {
+        groepen: data.groepen.map((g) => g.name),
+        posten: data.posten.map((p) => ({ naam: p.naam, beginKoers: p.beginKoers, voorraad: p.voorraad })),
+        startkapitaal: data.startkapitaal,
+        minKoers: data.minKoers,
+        maxKoers: data.maxKoers,
+        regels: data.regels,
+        nieuws: data.nieuws
+      });
     });
 
     $("#upload").addEventListener("change", async (event) => {
@@ -425,23 +704,63 @@
           const huidigePosten = opgeslagen ? opgeslagen.posten : [];
           postRijen = posten.map((p) => {
             const bestaand = huidigePosten.find((h) => h.naam.toLowerCase() === String(p.naam).toLowerCase());
+            const basis = { naam: String(p.naam), beginKoers: p.beginKoers, voorraad: p.voorraad ?? 0 };
             return bestaand
-              ? { id: bestaand.naam, naam: String(p.naam), beginKoers: p.beginKoers, koers: bestaand.koers, inBezit: bestaand.inBezit }
-              : { id: null, naam: String(p.naam), beginKoers: p.beginKoers, koers: 0, inBezit: 0 };
+              ? { ...basis, id: bestaand.naam, koers: bestaand.koers, inBezit: bestaand.inBezit }
+              : { ...basis, id: null, koers: 0, inBezit: 0 };
           });
         }
 
-        if (data.startkapitaal !== undefined) $("#startkapitaal").value = data.startkapitaal;
-        if (data.minKoers !== undefined) $("#minKoers").value = data.minKoers;
-        if (data.maxKoers !== undefined) $("#maxKoers").value = data.maxKoers;
+        vulFormulier({
+          startkapitaal: data.startkapitaal ?? $("#startkapitaal").value,
+          minKoers: data.minKoers ?? $("#minKoers").value,
+          maxKoers: data.maxKoers ?? $("#maxKoers").value,
+          regels: data.regels,
+          nieuws: data.nieuws
+        });
 
         tekenGroepen();
         tekenPosten();
+        tekenNieuws();
         melden("Bestand ingeladen. Controleer alles en klik op Opslaan.", true);
       } catch {
         melden("Dit bestand kan ik niet lezen. Kies een instellingen.json die je eerder hebt gedownload.", false);
       }
       event.target.value = "";
+    });
+
+    $("#downloadStand").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/backup");
+        if (!res.ok) throw new Error();
+        downloadJson(`marktmeesters-spelstand_${datumNaam()}.json`, await res.json());
+        melden("✓ Spelstand gedownload.", true);
+      } catch {
+        melden("Kon de spelstand niet downloaden.", false);
+      }
+    });
+
+    $("#uploadStand").addEventListener("change", async (event) => {
+      const bestand = event.target.files[0];
+      event.target.value = "";
+      if (!bestand) return;
+      try {
+        const data = JSON.parse(await bestand.text());
+        if (!data.state || !data.instellingen) throw new Error("Dit is geen spelstand-bestand. (Een instellingen-bestand laad je in met 'Instellingen inladen'.)");
+        const wanneer = data.gemaakt ? new Date(data.gemaakt).toLocaleString("nl-NL") : "onbekend";
+        if (!confirm(`Spelstand van ${wanneer} terugzetten? De huidige stand wordt overschreven.`)) return;
+        const res = await fetch("/api/herstel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        const inhoud = await res.json();
+        if (!res.ok) throw new Error(inhoud.error);
+        melden("✓ Spelstand teruggezet.", true);
+        await laad();
+      } catch (e) {
+        melden(e.message || "Dit bestand kan ik niet lezen.", false);
+      }
     });
 
     laad().catch(() => melden("De server is niet bereikbaar.", false));

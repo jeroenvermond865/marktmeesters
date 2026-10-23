@@ -97,6 +97,31 @@
     }
 
     .nieuwsbalk.flits { animation: flits 1.2s ease-out; }
+
+    .speelbalk { margin: 14px 0 0; text-align: center; }
+    .speelbalk b { font-size: 22px; }
+
+    .tip {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border: 2px dashed var(--orange);
+      border-radius: 16px;
+      background: #ff9d2e1a;
+    }
+    .tip .label { color: var(--orange); font-weight: 800; letter-spacing: .1em; font-size: 13px; }
+    .tip p { margin: 6px 0 0; font-size: 18px; font-weight: 700; }
+    .tip small { color: var(--muted); }
+    .tip.nieuw { animation: flits 1.5s ease-out; }
+
+    .eindstand { text-align: center; border-color: var(--gold, #ffd166); }
+    .eindstand .plek { font-size: 64px; font-weight: 900; color: #ffd166; line-height: 1; }
+    .eindstand table { width: 100%; border-collapse: collapse; margin-top: 12px; text-align: left; }
+    .eindstand td { padding: 8px 4px; border-bottom: 1px solid #ffffff1a; }
+    .eindstand tr.wij td { color: var(--cyan); font-weight: 800; }
+    .eindstand td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .vak.vol { grid-column: 1 / -1; }
+    .koersrij small { color: var(--muted); margin-right: 8px; }
   </style>
 </head>
 <body>
@@ -116,6 +141,12 @@
     <section id="mijnGroep" hidden>
       <h1 id="groepNaam" style="margin:16px 0 0"></h1>
 
+      <div class="speelbalk" id="speelbalk" hidden></div>
+
+      <div class="kaart eindstand" id="eindstand" hidden></div>
+
+      <div id="tips"></div>
+
       <section class="nieuwsbalk" id="nieuwsbalk"></section>
 
       <div class="kaart saldo">
@@ -124,6 +155,8 @@
         <div class="klein-rij">
           <div class="vak"><span>Totale waarde</span><b id="totaal">–</b></div>
           <div class="vak"><span>Winst / verlies</span><b id="resultaat">–</b></div>
+          <div class="vak" id="leningVak" hidden><span>Lening bij de bank</span><b id="lening">–</b></div>
+          <div class="vak" id="extraVak" hidden><span>Dividend + beloningen</span><b id="extra">–</b></div>
         </div>
       </div>
 
@@ -164,6 +197,51 @@
       if (r > 0) return `<span class="winst">+${euro(r)}</span>`;
       if (r < 0) return `<span class="verlies">−${euro(-r)}</span>`;
       return `<span class="neutraal">€ 0</span>`;
+    }
+
+    let klokVerschil = 0;
+    let laatsteData = null;
+    let gezieneTips = null;
+
+    function mmss(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    }
+
+    function tekenSpeelbalk() {
+      const data = laatsteData;
+      if (!data || !data.game) return;
+      const g = data.game;
+      const balk = $("#speelbalk");
+      let tekst = "", klasse = "speelbalk";
+      if (g.status === "loopt") {
+        const rest = g.eind - (Date.now() + klokVerschil);
+        tekst = `⏱ Nog <b>${mmss(rest)}</b>`;
+        if (rest <= 300000) { klasse += " slot"; tekst += " · SLOTFASE!"; }
+      } else if (g.status === "pauze") {
+        tekst = "⏸ <b>Pauze</b> — even geen handel"; klasse += " dicht";
+      } else if (g.status === "gesloten") {
+        tekst = "■ <b>De beurs is gesloten</b>"; klasse += " dicht";
+      }
+      balk.className = klasse;
+      balk.innerHTML = tekst;
+      balk.hidden = !tekst;
+    }
+    setInterval(tekenSpeelbalk, 1000);
+
+    function beschrijf(t) {
+      switch (t.action) {
+        case "buy": return [`Gekocht: <b>${t.qty}× ${esc(t.stock)}</b> à ${euro(t.price)}`, ""];
+        case "sell": return [`Verkocht: <b>${t.qty}× ${esc(t.stock)}</b> à ${euro(t.price)}`,
+          t.result !== null && t.result !== undefined ? ` · ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}` : ""];
+        case "bonus": return [`🏅 Beloning: <b class="winst">+${euro(t.amount)}</b>`, t.reason ? ` · ${esc(t.reason)}` : ""];
+        case "boete": return [`⚠️ Boete: <b class="verlies">−${euro(-t.amount)}</b>`, t.reason ? ` · ${esc(t.reason)}` : ""];
+        case "lenen": return [`🏦 Geleend: <b>${euro(t.amount)}</b>`, ""];
+        case "aflossen": return [`🏦 Afgelost: <b>${euro(t.amount)}</b>`, ""];
+        case "dividend": return [`💰 Dividend: <b class="winst">+${euro(t.amount)}</b>`, ""];
+        case "rente": return [`📈 Rente op lening: <b class="verlies">${euro(t.amount)}</b>`, " · lening is gestegen"];
+        default: return [esc(t.action), ""];
+      }
     }
 
     function tijd(iso) {
@@ -227,8 +305,43 @@
       const open = data.posts.reduce((som, a) => som + ((g.shares[a] || 0) ? (g.shares[a] * data.prices[a] - (cost[a] || 0)) : 0), 0);
 
       $("#kas").textContent = euro(g.cash);
-      $("#totaal").textContent = euro(g.cash + waarde);
+      $("#totaal").textContent = euro(g.cash + waarde - (g.loan || 0));
       $("#resultaat").innerHTML = resultaatHtml((g.realized || 0) + open);
+      $("#leningVak").hidden = !g.loan;
+      $("#lening").innerHTML = `<span class="verlies">${euro(g.loan || 0)}</span>`;
+      const extra = (g.dividend || 0) + (g.bonus || 0);
+      $("#extraVak").hidden = !g.dividend && !g.bonus;
+      $("#extra").innerHTML = resultaatHtml(extra);
+      // Alleen een lening of alleen extra? Dan het vak over de hele breedte
+      $("#leningVak").classList.toggle("vol", $("#extraVak").hidden);
+      $("#extraVak").classList.toggle("vol", $("#leningVak").hidden);
+
+      // Geheime tips (alleen voor deze groep)
+      const tips = data.tips || [];
+      const nieuweTip = gezieneTips !== null && tips.length && tips[0].at !== gezieneTips;
+      $("#tips").innerHTML = tips.slice(0, 2).map((t, i) => `
+        <div class="tip ${i === 0 && nieuweTip ? "nieuw" : ""}">
+          <div class="label">🤫 GEHEIME TIP · ${tijd(t.at)}</div>
+          <p>${esc(t.tekst)}</p>
+          <small>Alleen jullie groep ziet dit. Niet doorvertellen!</small>
+        </div>`).join("");
+      if (nieuweTip && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      gezieneTips = tips.length ? tips[0].at : "";
+
+      // Eindstand als de beurs gesloten is
+      if (data.eindstand) {
+        const plek = data.eindstand.findIndex((r) => r.id === g.id) + 1;
+        $("#eindstand").innerHTML = `
+          <div class="label" style="color:var(--muted);font-weight:700;letter-spacing:.1em">EINDSTAND</div>
+          <div class="plek">${plek === 1 ? "🏆 " : ""}#${plek}</div>
+          <p style="margin:6px 0 0">${plek === 1 ? "Gefeliciteerd, jullie hebben gewonnen!" : `Jullie zijn ${plek}e van de ${data.eindstand.length}.`}</p>
+          <table>${data.eindstand.map((r, i) => `
+            <tr class="${r.id === g.id ? "wij" : ""}"><td>${i + 1}.</td><td>${esc(r.name)}</td><td class="num">${euro(r.totaal)}</td></tr>`).join("")}
+          </table>`;
+        $("#eindstand").hidden = false;
+      } else {
+        $("#eindstand").hidden = true;
+      }
 
       // Aandelen in bezit
       const inBezit = data.posts.filter((a) => g.shares[a] > 0);
@@ -253,18 +366,20 @@
       $("#koersen").innerHTML = data.posts.map((a) => {
         const verschil = data.prices[a] - data.previous[a];
         const pijl = verschil > 0 ? `<span class="op">▲ +${verschil}</span>` : verschil < 0 ? `<span class="neer">▼ ${verschil}</span>` : "";
-        return `<div class="koersrij"><span>${esc(a)}</span><span>${pijl} <b>${euro(data.prices[a])}</b></span></div>`;
+        const totaal = (data.supply && data.supply[a]) || 0;
+        const vrij = totaal ? totaal - ((data.held && data.held[a]) || 0) : null;
+        const voorraad = vrij === null ? "" : vrij <= 0 ? `<small class="verlies">uitverkocht</small>` : `<small>nog ${vrij}</small>`;
+        return `<div class="koersrij"><span>${esc(a)}</span><span>${voorraad}${pijl} <b>${euro(data.prices[a])}</b></span></div>`;
       }).join("");
 
       // Transacties
       $("#transacties").innerHTML = data.transactions.length
         ? data.transactions.map((t) => {
-            const resultaat = t.result !== null && t.result !== undefined
-              ? ` · ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}` : "";
+            const [hoofd, extra] = beschrijf(t);
             return `
               <div class="regel">
-                ${t.action === "buy" ? "Gekocht" : "Verkocht"}: <b>${t.qty}× ${esc(t.stock)}</b> à ${euro(t.price)}
-                <small>${tijd(t.at)}${t.station ? " · post " + esc(t.station) : ""}${resultaat}</small>
+                ${hoofd}
+                <small>${tijd(t.at)}${t.station ? " · post " + esc(t.station) : ""}${extra}</small>
               </div>`;
           }).join("")
         : `<p class="leeg-tekst">Nog geen transacties.</p>`;
@@ -288,6 +403,7 @@
     function verbind() {
       if (bron) bron.close();
       vorigNieuws = null;
+      gezieneTips = null;
       bron = new EventSource("/api/speler/events" + (groepId ? "?groep=" + groepId : ""));
 
       bron.onopen = () => {
@@ -303,6 +419,9 @@
       };
       bron.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        laatsteData = data;
+        if (data.serverNow) klokVerschil = data.serverNow - Date.now();
+        tekenSpeelbalk();
         if (data.groep) {
           toonGroep(data);
         } else {

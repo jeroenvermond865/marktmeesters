@@ -22,8 +22,10 @@
     </section>
 
     <div id="inhoud" hidden>
+    <div class="speelbalk" id="speelbalk"></div>
+
     <section class="koerskaart">
-      <span>Actuele koers</span>
+      <span>Actuele koers<small id="voorraad"></small></span>
       <strong id="koers">€ –</strong>
     </section>
 
@@ -31,32 +33,76 @@
 
     <div class="indeling">
       <section class="transactiekaart">
-        <h2>Transactie invoeren</h2>
+        <div class="keuze drie" id="modusKnoppen">
+          <button type="button" class="keuzeknop actief" data-modus="handel">Handel</button>
+          <button type="button" class="keuzeknop" data-modus="bonus">Beloning / boete</button>
+          <button type="button" class="keuzeknop" data-modus="bank">Bank</button>
+        </div>
 
         <div class="keuze" id="groepKnoppen"></div>
 
-        <div class="keuze twee">
-          <button type="button" class="keuzeknop actief" data-actie="buy">Kopen</button>
-          <button type="button" class="keuzeknop" data-actie="sell">Verkopen</button>
+        <!-- Handel -->
+        <div class="modus" data-voor="handel">
+          <div class="keuze twee">
+            <button type="button" class="keuzeknop actief" data-actie="buy">Kopen</button>
+            <button type="button" class="keuzeknop" data-actie="sell">Verkopen</button>
+          </div>
+
+          <label>
+            Aandeel
+            <select id="aandeel"></select>
+          </label>
+
+          <label>
+            Aantal aandelen
+            <div class="aantal">
+              <button type="button" class="klein" data-stap="-1">−</button>
+              <input id="aantal" type="number" min="1" value="1" inputmode="numeric">
+              <button type="button" class="klein" data-stap="1">+</button>
+            </div>
+          </label>
+
+          <p class="samenvatting" id="samenvatting"></p>
+          <button id="verwerk">Verwerk transactie</button>
         </div>
 
-        <label>
-          Aandeel
-          <select id="aandeel"></select>
-        </label>
-
-        <label>
-          Aantal aandelen
-          <div class="aantal">
-            <button type="button" class="klein" data-stap="-1">−</button>
-            <input id="aantal" type="number" min="1" value="1" inputmode="numeric">
-            <button type="button" class="klein" data-stap="1">+</button>
+        <!-- Beloning of boete -->
+        <div class="modus" data-voor="bonus" hidden>
+          <div class="keuze twee">
+            <button type="button" class="keuzeknop actief" data-bonus="plus">🏅 Beloning</button>
+            <button type="button" class="keuzeknop" data-bonus="min">⚠️ Boete</button>
           </div>
-        </label>
+          <label>
+            Bedrag (€)
+            <input id="bonusBedrag" type="number" min="1" step="1" value="50" inputmode="numeric">
+          </label>
+          <div class="snelkeuze" id="bonusSnel">
+            <button type="button" data-bedrag="25">25</button>
+            <button type="button" data-bedrag="50">50</button>
+            <button type="button" data-bedrag="100">100</button>
+            <button type="button" data-bedrag="200">200</button>
+          </div>
+          <label>
+            Reden
+            <input id="bonusReden" maxlength="80" placeholder="Bijv. 'Toren gebouwd' of 'Te laat terug'">
+          </label>
+          <p class="samenvatting" id="bonusSamenvatting"></p>
+          <button id="bonusKnop">Geef beloning</button>
+        </div>
 
-        <p class="samenvatting" id="samenvatting"></p>
-
-        <button id="verwerk">Verwerk transactie</button>
+        <!-- Bank -->
+        <div class="modus" data-voor="bank" hidden>
+          <div class="keuze twee">
+            <button type="button" class="keuzeknop actief" data-bank="lenen">Lenen</button>
+            <button type="button" class="keuzeknop" data-bank="aflossen">Aflossen</button>
+          </div>
+          <label>
+            Bedrag (€)
+            <input id="bankBedrag" type="number" min="1" step="1" value="100" inputmode="numeric">
+          </label>
+          <p class="samenvatting" id="bankSamenvatting"></p>
+          <button id="bankKnop">Lenen</button>
+        </div>
 
         <p class="melding" id="melding"></p>
       </section>

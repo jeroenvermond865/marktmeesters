@@ -14,9 +14,11 @@
       --muted: #a9b8c8;
       --green: #39d98a;
       --red: #ff5c6c;
+      --gold: #ffd166;
     }
 
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
 
     body {
       margin: 0;
@@ -40,24 +42,48 @@
 
     .tag { color: var(--cyan); font-weight: 800; letter-spacing: .14em; }
 
-    .clock {
+    .klokken { display: flex; gap: 12px; align-items: stretch; }
+
+    .clock, .speelklok {
       padding: 12px 18px;
       border: 1px solid #ffffff22;
       border-radius: 14px;
       background: #0008;
-      font-size: 24px;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
+      text-align: center;
     }
+    .clock { font-size: 24px; display: grid; place-items: center; }
+    .speelklok { min-width: 190px; }
+    .speelklok small { display: block; color: var(--muted); font-size: 12px; letter-spacing: .1em; }
+    .speelklok b { font-size: 34px; }
+    .speelklok.slot { border-color: var(--red); animation: knipper 1s infinite; }
+    .speelklok.slot b { color: var(--red); }
+    .speelklok.dicht b { color: var(--orange); }
+    @keyframes knipper { 50% { background: #ff5c6c33; } }
 
     .verbinding { font-size: 13px; color: var(--muted); margin-top: 6px; text-align: right; }
     .verbinding.weg { color: var(--red); }
+
+    .herstelbalk {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 16px 20px;
+      border: 2px solid var(--orange);
+      border-radius: 16px;
+      background: #ff9d2e22;
+    }
+    .herstelbalk p { flex: 1; margin: 0; min-width: 240px; }
+    .herstelbalk button { width: auto; padding: 12px 18px; }
 
     .prices {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
       gap: 14px;
-      margin: 26px 0;
+      margin: 26px 0 18px;
     }
 
     .price {
@@ -74,6 +100,8 @@
     .price .soort { display: block; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .1em; }
     .value { font-size: 36px; font-weight: 900; font-variant-numeric: tabular-nums; }
     .change { margin-top: 8px; font-weight: 800; }
+    .voorraad { margin-top: 6px; color: var(--muted); font-size: 13px; }
+    .voorraad.op { color: var(--red); font-weight: 800; }
     .up { color: var(--green); }
     .down { color: var(--red); }
     .flat { color: var(--muted); }
@@ -93,6 +121,14 @@
     }
 
     .panel + .panel { margin-top: 20px; }
+    .panel h2 { margin: 0 0 12px; }
+
+    /* Grafiek */
+    .grafiek { margin-bottom: 20px; }
+    .grafiek svg { width: 100%; height: 260px; display: block; }
+    .legenda { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; font-size: 14px; }
+    .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+    .legenda i { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
 
     .news-feed { max-height: 380px; overflow-y: auto; }
     .news { padding: 15px 0; border-bottom: 1px solid #ffffff22; }
@@ -114,7 +150,6 @@
     th { color: var(--muted); font-size: 13px; font-weight: 600; }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tr.eerste td { color: var(--orange); font-weight: 900; }
-    .transaction small { color: var(--muted); }
 
     button, input, select {
       width: 100%;
@@ -132,7 +167,7 @@
     }
 
     button:hover { outline: 2px solid var(--white); }
-    button:disabled { opacity: .5; cursor: wait; }
+    button:disabled { opacity: .45; cursor: not-allowed; outline: none; }
 
     input, select {
       border: 1px solid #52708b;
@@ -142,6 +177,11 @@
     }
 
     .danger { margin-top: 12px; background: #5a2030; color: white; }
+    .tweeknop { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .krach { background: var(--red); color: white; }
+    .hausse { background: var(--green); }
+    .oranje { background: var(--orange); }
+    .stil { background: #071426; color: var(--white); border: 1px solid #52708b; }
 
     .knoplink {
       display: block;
@@ -156,19 +196,61 @@
     }
     .knoplink:hover { border-color: var(--cyan); }
 
-    form { display: grid; gap: 10px; margin-top: 16px; }
-    form .rij { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
+    form, .blok { display: grid; gap: 10px; margin-top: 16px; }
+    form .rij, .blok .rij { display: grid; grid-template-columns: 1fr 110px; gap: 10px; }
 
-    .status { margin-top: 18px; color: var(--muted); line-height: 1.5; }
+    .status { margin: 0; color: var(--muted); line-height: 1.5; }
 
     .transactions { margin-top: 20px; }
     .transaction { padding: 12px 0; border-bottom: 1px solid #ffffff22; }
+    .transaction small { color: var(--muted); }
 
-    .auto { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); }
-    .auto { flex-wrap: wrap; }
+    .auto { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); flex-wrap: wrap; }
     .auto-aan { display: flex; align-items: center; gap: 10px; cursor: pointer; }
     .auto input[type="checkbox"] { width: auto; }
     .auto input[type="number"] { width: 90px; padding: 6px 8px; text-align: right; }
+    .slotfase { color: var(--red); font-weight: 800; }
+
+    .tiplijst { margin-top: 8px; font-size: 14px; color: var(--muted); }
+    .tiplijst div { padding: 6px 0; border-bottom: 1px solid #ffffff12; }
+    .tiplijst b { color: var(--white); }
+
+    /* Eindscherm */
+    .einde {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      overflow-y: auto;
+      padding: 30px 16px;
+      background: radial-gradient(circle at top, #1d4a72, #050d1a 70%);
+    }
+    .einde[hidden] { display: none; }
+    .einde canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .einde-inhoud { position: relative; width: min(1000px, 100%); text-align: center; }
+    .einde h1 { font-size: clamp(36px, 6vw, 72px); }
+    .einde .ondertitel { color: var(--muted); font-size: 20px; margin: 8px 0 30px; }
+    .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 14px; align-items: end; }
+    .trede { display: grid; gap: 10px; }
+    .trede .naam { font-size: clamp(18px, 2.4vw, 30px); font-weight: 900; }
+    .trede .bedrag { color: var(--muted); font-size: 18px; font-variant-numeric: tabular-nums; }
+    .trede .blok-podium {
+      display: grid;
+      place-items: center;
+      border-radius: 16px 16px 0 0;
+      font-size: 56px;
+      font-weight: 900;
+      color: var(--bg);
+    }
+    .plek1 .blok-podium { height: 240px; background: var(--gold); }
+    .plek2 .blok-podium { height: 170px; background: #d7dee8; }
+    .plek3 .blok-podium { height: 120px; background: #e0a66b; }
+    .plek1 .naam { color: var(--gold); font-size: clamp(24px, 3.4vw, 42px); }
+    .rest { margin: 30px auto 0; max-width: 620px; }
+    .rest td { font-size: 18px; }
+    .einde-knoppen { display: flex; gap: 12px; justify-content: center; margin-top: 26px; }
+    .einde-knoppen button { width: auto; padding: 14px 24px; }
 
     @media (max-width: 900px) {
       .prices { grid-template-columns: repeat(2, 1fr); }
@@ -184,12 +266,27 @@
         <h1>AANDELENBEURS NIEUWE VAART</h1>
       </div>
       <div>
-        <div class="clock" id="clock">00:00:00</div>
+        <div class="klokken">
+          <div class="speelklok" id="speelklok"><small id="speelLabel">BEURS</small><b id="speelTijd">OPEN</b></div>
+          <div class="clock" id="clock">00:00:00</div>
+        </div>
         <div class="verbinding" id="verbinding">Verbinden…</div>
       </div>
     </header>
 
+    <div class="herstelbalk" id="herstelbalk" hidden>
+      <p id="herstelTekst"></p>
+      <button type="button" class="oranje" id="herstelKnop">Spelstand herstellen</button>
+      <button type="button" class="stil" id="herstelNegeer">Nieuw spel houden</button>
+    </div>
+
     <section class="prices" id="prices"></section>
+
+    <div class="panel grafiek">
+      <div class="tag">KOERSVERLOOP</div>
+      <svg id="grafiek" viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Koersgrafiek"></svg>
+      <div class="legenda" id="legenda"></div>
+    </div>
 
     <section class="layout">
       <div>
@@ -209,15 +306,22 @@
           <div class="tag">TUSSENSTAND</div>
           <table>
             <thead>
-              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
+              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Lening</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
             </thead>
             <tbody id="ranking"></tbody>
           </table>
-          <p class="status">+/− = winst of verlies op alle aandelen (verkocht en nog in bezit). Totaal = kasgeld + waarde van alle aandelen tegen de huidige koers.</p>
+          <p class="status" style="margin-top:10px">+/− = winst of verlies op aandelen. Totaal = kasgeld + aandelen − lening.</p>
+          <button type="button" class="stil" id="toonEinde" style="margin-top:12px">🏆 Toon eindscherm</button>
         </div>
 
         <div class="panel">
-          <h2 style="margin-top:0">Beursleiding</h2>
+          <h2>Speeltijd</h2>
+          <p class="status" id="speelStatus"></p>
+          <div class="blok" id="speelKnoppen"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Beursleiding</h2>
 
           <button id="randomButton">Willekeurig nieuws</button>
 
@@ -231,6 +335,14 @@
           </div>
           <div class="status" id="autoStatus"></div>
 
+          <div class="blok">
+            <div class="tag">HELE BEURS</div>
+            <div class="tweeknop">
+              <button type="button" class="krach" id="krachKnop">📉 Beurskrach</button>
+              <button type="button" class="hausse" id="hausseKnop">📈 Hausse</button>
+            </div>
+          </div>
+
           <form id="eigenNieuws">
             <div class="tag">EIGEN NIEUWSBERICHT</div>
             <input id="nTitel" placeholder="Kop, bijv. 'Kapotte peddel gevonden'" maxlength="100" required>
@@ -242,25 +354,54 @@
             <button type="submit">Plaats nieuws</button>
           </form>
 
+          <form id="tipForm">
+            <div class="tag">GEHEIME TIP</div>
+            <p class="status">Alleen te zien op de ledenpagina van die ene groep.</p>
+            <select id="tipGroep"></select>
+            <input id="tipTekst" placeholder="Bijv. 'De Loods gaat over 5 minuten stijgen'" maxlength="200" required>
+            <button type="submit">🤫 Stuur tip</button>
+            <div class="tiplijst" id="tipLijst"></div>
+          </form>
+
           <a class="knoplink" href="/instellingen.html">⚙ Spelinstellingen</a>
 
           <button class="danger" id="resetButton">Reset spel</button>
 
-          <p class="status">
-            Koersen, kasgeld en nieuws staan op de server. Deze pagina mag je gerust herladen zonder dat er iets verloren gaat.
+          <p class="status" style="margin-top:14px">
+            Alles staat op de server en wordt ook op deze computer bewaard. Herladen is veilig.
           </p>
         </div>
       </aside>
     </section>
   </div>
 
+  <!-- Eindscherm -->
+  <div class="einde" id="einde" hidden>
+    <canvas id="confetti"></canvas>
+    <div class="einde-inhoud">
+      <div class="tag">DE BEURS IS GESLOTEN</div>
+      <h1>🏆 <span id="winnaar"></span> wint!</h1>
+      <p class="ondertitel" id="eindTekst"></p>
+      <div class="podium" id="podium"></div>
+      <table class="rest"><tbody id="eindLijst"></tbody></table>
+      <div class="einde-knoppen">
+        <button type="button" id="meerConfetti">🎉 Meer confetti</button>
+        <button type="button" class="stil" id="sluitEinde">Terug naar de beurs</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // De posten (aandelen) komen nu uit de spelinstellingen op de server
     let aandelen = [];
-
+    let state = null;
     let laatsteKoersen = null;
+    let klokVerschil = 0; // serverklok - eigen klok
+    let vorigeStatus = null;
 
-    // Tekst veilig in HTML zetten (voor eigen nieuwsberichten)
+    const kleuren = ["#18d0e5", "#ff9d2e", "#39d98a", "#c77dff", "#ff5c6c", "#ffd166", "#4cc9f0", "#f72585", "#90be6d", "#f9844a", "#b5838d", "#a8dadc"];
+
+    const $ = (sel) => document.querySelector(sel);
+
     function esc(tekst) {
       return String(tekst).replace(/[&<>"']/g, (c) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -268,48 +409,19 @@
     }
 
     function euro(bedrag) {
-      return "€ " + Number(bedrag).toLocaleString("nl-NL");
+      return "€ " + Math.round(Number(bedrag)).toLocaleString("nl-NL");
     }
 
     function tijd(iso) {
       return new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
     }
 
-    function renderKoersen(state) {
-      document.querySelector("#prices").innerHTML = aandelen.map((key) => {
-        const waarde = state.prices[key];
-        const verschil = waarde - state.previous[key];
-        const klasse = verschil > 0 ? "up" : verschil < 0 ? "down" : "flat";
-        const teken = verschil > 0 ? "▲ +" : verschil < 0 ? "▼ " : "";
-        const flits = laatsteKoersen && laatsteKoersen[key] !== waarde ? " flits" : "";
-
-        return `
-          <article class="price${flits}">
-            <h2><span class="soort">AANDEEL</span>${esc(key)}</h2>
-            <div class="value">${euro(waarde)}</div>
-            <div class="change ${klasse}">${teken}${verschil} sinds vorig nieuws</div>
-          </article>`;
-      }).join("");
-
-      laatsteKoersen = { ...state.prices };
-      setTimeout(() => {
-        document.querySelectorAll(".price.flits").forEach((el) => el.classList.remove("flits"));
-      }, 400);
-    }
-
-    function renderNieuws(state) {
-      document.querySelector("#newsFeed").innerHTML = state.news.map((item) => {
-        const effect = item.changes.length
-          ? item.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ")
-          : "Geen prijswijziging";
-
-        return `
-          <article class="news">
-            <h2>${esc(item.titel)}<time>${tijd(item.at)}</time></h2>
-            ${item.tekst ? `<p>${esc(item.tekst)}</p>` : ""}
-            <div class="effect">${effect}</div>
-          </article>`;
-      }).join("");
+    function mmss(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      const u = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const r = String(s % 60).padStart(2, "0");
+      return u ? `${u}:${String(m).padStart(2, "0")}:${r}` : `${m}:${r}`;
     }
 
     function resultaatHtml(bedrag) {
@@ -319,44 +431,328 @@
       return `<span class="flat">€ 0</span>`;
     }
 
-    function renderTransacties(state) {
-      const doel = document.querySelector("#transactions");
+    function handelOpen() {
+      return state && (state.game.status === "vrij" || state.game.status === "loopt");
+    }
 
+    function restTijd() {
+      if (!state) return 0;
+      const g = state.game;
+      if (g.status === "loopt") return g.eind - (Date.now() + klokVerschil);
+      if (g.status === "pauze") return g.rest;
+      return 0;
+    }
+
+    function waardeVan(g) {
+      const aand = aandelen.reduce((som, a) => som + (g.shares[a] || 0) * state.prices[a], 0);
+      return g.cash + aand - (g.loan || 0);
+    }
+
+    function stand() {
+      return state.groups.map((g) => {
+        const open = aandelen.reduce((som, a) => som + ((g.shares[a] || 0) * state.prices[a] - ((g.cost && g.cost[a]) || 0)), 0);
+        return { ...g, totaal: waardeVan(g), resultaat: (g.realized || 0) + open };
+      }).sort((a, b) => b.totaal - a.totaal);
+    }
+
+    // --- Koerskaarten ---
+
+    function renderKoersen() {
+      $("#prices").innerHTML = aandelen.map((key) => {
+        const waarde = state.prices[key];
+        const verschil = waarde - state.previous[key];
+        const klasse = verschil > 0 ? "up" : verschil < 0 ? "down" : "flat";
+        const teken = verschil > 0 ? "▲ +" : verschil < 0 ? "▼ " : "";
+        const flits = laatsteKoersen && laatsteKoersen[key] !== waarde ? " flits" : "";
+
+        const totaal = state.supply[key] || 0;
+        let voorraad = "";
+        if (totaal) {
+          const vrij = totaal - state.groups.reduce((som, g) => som + (g.shares[key] || 0), 0);
+          voorraad = `<div class="voorraad ${vrij <= 0 ? "op" : ""}">${vrij <= 0 ? "UITVERKOCHT" : `Nog ${vrij} van ${totaal} te koop`}</div>`;
+        }
+
+        return `
+          <article class="price${flits}">
+            <h2><span class="soort">AANDEEL</span>${esc(key)}</h2>
+            <div class="value">${euro(waarde)}</div>
+            <div class="change ${klasse}">${teken}${verschil} sinds laatste nieuws</div>
+            ${voorraad}
+          </article>`;
+      }).join("");
+
+      laatsteKoersen = { ...state.prices };
+      setTimeout(() => {
+        document.querySelectorAll(".price.flits").forEach((el) => el.classList.remove("flits"));
+      }, 400);
+    }
+
+    // --- Koersgrafiek ---
+
+    function renderGrafiek() {
+      const svg = $("#grafiek");
+      const punten = [...(state.history || []), { t: Date.now() + klokVerschil, p: state.prices }];
+      const B = 1000, H = 260, links = 48, rechts = 12, boven = 12, onder = 26;
+
+      const waarden = punten.flatMap((pt) => aandelen.map((a) => pt.p[a]).filter((w) => w !== undefined));
+      let min = Math.min(...waarden), max = Math.max(...waarden);
+      if (min === max) { min -= 10; max += 10; }
+      const marge = (max - min) * 0.08;
+      min = Math.max(0, min - marge); max += marge;
+
+      const t0 = punten[0].t, t1 = Math.max(punten[punten.length - 1].t, t0 + 60000);
+      const x = (t) => links + ((t - t0) / (t1 - t0)) * (B - links - rechts);
+      const y = (w) => boven + (1 - (w - min) / (max - min)) * (H - boven - onder);
+
+      let inhoud = "";
+      // hulplijnen
+      for (let i = 0; i <= 4; i++) {
+        const w = min + ((max - min) * i) / 4;
+        inhoud += `<line x1="${links}" x2="${B - rechts}" y1="${y(w)}" y2="${y(w)}" stroke="#ffffff1a" vector-effect="non-scaling-stroke"/>`;
+        inhoud += `<text x="${links - 6}" y="${y(w) + 4}" fill="#a9b8c8" font-size="12" text-anchor="end">€${Math.round(w)}</text>`;
+      }
+      // tijdlabels
+      for (let i = 0; i <= 4; i++) {
+        const t = t0 + ((t1 - t0) * i) / 4;
+        inhoud += `<text x="${x(t)}" y="${H - 6}" fill="#a9b8c8" font-size="12" text-anchor="${i === 0 ? "start" : i === 4 ? "end" : "middle"}">${new Date(t).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}</text>`;
+      }
+      // een trapjeslijn per aandeel (koers blijft gelijk tot de volgende wijziging)
+      aandelen.forEach((a, i) => {
+        let d = "", vorige = null;
+        punten.forEach((pt) => {
+          const w = pt.p[a];
+          if (w === undefined) return;
+          if (vorige === null) d += `M${x(pt.t)},${y(w)}`;
+          else d += `H${x(pt.t)}V${y(w)}`;
+          vorige = w;
+        });
+        inhoud += `<path d="${d}" fill="none" stroke="${kleuren[i % kleuren.length]}" stroke-width="3" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+      });
+      svg.innerHTML = inhoud;
+
+      $("#legenda").innerHTML = aandelen.map((a, i) =>
+        `<span><i style="background:${kleuren[i % kleuren.length]}"></i>${esc(a)} <b>${euro(state.prices[a])}</b></span>`).join("");
+    }
+
+    // --- Nieuws en transacties ---
+
+    function renderNieuws() {
+      $("#newsFeed").innerHTML = state.news.map((item) => {
+        const effect = item.changes.length
+          ? item.changes.map((c) => `${esc(c.stock)} ${c.diff > 0 ? "+" : ""}€ ${c.diff}`).join(" · ")
+          : "";
+
+        return `
+          <article class="news">
+            <h2>${esc(item.titel)}<time>${tijd(item.at)}</time></h2>
+            ${item.tekst ? `<p>${esc(item.tekst)}</p>` : ""}
+            ${effect ? `<div class="effect">${effect}</div>` : ""}
+          </article>`;
+      }).join("");
+    }
+
+    function beschrijf(t) {
+      const wie = `<strong>${esc(t.group)}</strong>`;
+      const waar = t.station ? ` bij post ${esc(t.station)}` : "";
+      const reden = t.reason ? ` <small>(${esc(t.reason)})</small>` : "";
+      switch (t.action) {
+        case "buy":
+          return `${wie} kocht <strong>${t.qty}× ${esc(t.stock)}</strong> à ${euro(t.price)} (${euro(t.total)})${waar}`;
+        case "sell":
+          return `${wie} verkocht <strong>${t.qty}× ${esc(t.stock)}</strong> à ${euro(t.price)} (${euro(t.total)})${waar}` +
+            (t.result !== null && t.result !== undefined
+              ? `<br><small>Gekocht à ${euro(t.avg)} → ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}</small>` : "");
+        case "bonus": return `🏅 ${wie} kreeg een beloning van <span class="up">${euro(t.amount)}</span>${waar}${reden}`;
+        case "boete": return `⚠️ ${wie} kreeg een boete van <span class="down">${euro(-t.amount)}</span>${waar}${reden}`;
+        case "lenen": return `🏦 ${wie} leende ${euro(t.amount)}${waar}`;
+        case "aflossen": return `🏦 ${wie} loste ${euro(t.amount)} af${waar}`;
+        case "dividend": return `💰 ${wie} kreeg <span class="up">${euro(t.amount)}</span> dividend`;
+        case "rente": return `📈 ${wie} betaalt ${euro(t.amount)} rente op de lening`;
+        default: return `${wie} ${esc(t.action)}`;
+      }
+    }
+
+    function renderTransacties() {
+      const doel = $("#transactions");
       if (!state.transactions.length) {
         doel.textContent = "Nog geen transacties.";
         return;
       }
-
-      doel.innerHTML = state.transactions.slice(0, 8).map((t) => `
-        <div class="transaction">
-          <strong>${esc(t.group)}</strong> ${t.action === "buy" ? "kocht" : "verkocht"}
-          <strong>${t.qty}× ${esc(t.stock)}</strong>
-          à ${euro(t.price)} (${euro(t.total ?? t.price * t.qty)})
-          ${t.station ? "bij post " + esc(t.station) : ""} · ${tijd(t.at)}
-          ${t.result !== null && t.result !== undefined
-            ? `<br><small>Gekocht à ${euro(t.avg)} → ${t.result >= 0 ? "winst" : "verlies"} ${resultaatHtml(t.result)}</small>`
-            : ""}
-        </div>`).join("");
+      doel.innerHTML = state.transactions.slice(0, 10).map((t) =>
+        `<div class="transaction">${beschrijf(t)} <small>· ${tijd(t.at)}</small></div>`).join("");
     }
 
-    function renderRanking(state) {
-      const lijst = state.groups.map((g) => {
-        const aandelenWaarde = aandelen.reduce((som, a) => som + (g.shares[a] || 0) * state.prices[a], 0);
-        const open = aandelen.reduce((som, a) => som + ((g.shares[a] || 0) * state.prices[a] - ((g.cost && g.cost[a]) || 0)), 0);
-        return { ...g, totaal: g.cash + aandelenWaarde, resultaat: (g.realized || 0) + open };
-      }).sort((a, b) => b.totaal - a.totaal);
-
-      document.querySelector("#ranking").innerHTML = lijst.map((g, i) => `
+    function renderRanking() {
+      $("#ranking").innerHTML = stand().map((g, i) => `
         <tr class="${i === 0 ? "eerste" : ""}">
           <td>${i + 1}</td>
           <td>${esc(g.name)}</td>
           <td class="num">${euro(g.cash)}</td>
+          <td class="num">${g.loan ? `<span class="down">${euro(g.loan)}</span>` : "–"}</td>
           <td class="num">${resultaatHtml(g.resultaat)}</td>
           <td class="num">${euro(g.totaal)}</td>
         </tr>`).join("");
     }
 
-    // Keuzelijst voor eigen nieuws bijwerken als de posten veranderen
+    // --- Speeltijd ---
+
+    function tekenSpeelklok() {
+      if (!state) return;
+      const g = state.game;
+      const klok = $("#speelklok");
+      const rest = restTijd();
+      klok.className = "speelklok";
+      if (g.status === "vrij") {
+        $("#speelLabel").textContent = "BEURS";
+        $("#speelTijd").textContent = "OPEN";
+      } else if (g.status === "loopt") {
+        $("#speelLabel").textContent = rest <= 300000 ? "SLOTFASE · NOG" : "SPEELTIJD · NOG";
+        $("#speelTijd").textContent = mmss(rest);
+        if (rest <= 300000) klok.classList.add("slot");
+      } else if (g.status === "pauze") {
+        $("#speelLabel").textContent = "GEPAUZEERD · NOG";
+        $("#speelTijd").textContent = mmss(rest);
+        klok.classList.add("dicht");
+      } else {
+        $("#speelLabel").textContent = "BEURS";
+        $("#speelTijd").textContent = "GESLOTEN";
+        klok.classList.add("dicht");
+      }
+    }
+
+    function renderSpeelKnoppen() {
+      const g = state.game;
+      const doel = $("#speelKnoppen");
+      const standaard = (state.rules && state.rules.speelduur) || 60;
+      const knop = (tekst, actie, klasse = "", extra = {}) =>
+        `<button type="button" class="${klasse}" data-actie="${actie}" ${extra.minuten !== undefined ? `data-minuten="${extra.minuten}"` : ""}>${tekst}</button>`;
+
+      const teksten = {
+        vrij: "De beurs is open zonder tijdslimiet. Start de klok om een speeltijd te kiezen.",
+        loopt: "De klok loopt. In de laatste 5 minuten komt automatisch nieuws twee keer zo vaak.",
+        pauze: "Gepauzeerd: niemand kan handelen en dividend en rente staan stil.",
+        gesloten: "De beurs is gesloten. Er kan niet meer gehandeld worden."
+      };
+      $("#speelStatus").textContent = teksten[g.status];
+
+      // Het invulveld niet opnieuw tekenen als het al bestaat (anders verlies je je invoer)
+      const sleutel = g.status;
+      if (doel.dataset.status === sleutel) return;
+      doel.dataset.status = sleutel;
+
+      if (g.status === "vrij" || g.status === "gesloten") {
+        doel.innerHTML = `
+          <div class="rij"><input type="number" id="speelMinuten" min="1" max="600" value="${standaard}" aria-label="Minuten"><span class="status" style="align-self:center">minuten</span></div>
+          ${knop("▶ Start de klok", "start")}
+          ${g.status === "gesloten" ? knop("Beurs heropenen zonder klok", "heropen", "stil") : knop("■ Beurs nu sluiten", "stop", "danger")}`;
+      } else {
+        doel.innerHTML = `
+          ${g.status === "loopt" ? knop("⏸ Pauze", "pauze", "oranje") : knop("▶ Verder spelen", "hervat")}
+          <div class="tweeknop">${knop("+5 minuten", "verleng", "stil", { minuten: 5 })}${knop("−5 minuten", "verleng", "stil", { minuten: -5 })}</div>
+          ${knop("■ Beurs nu sluiten", "stop", "danger")}`;
+      }
+    }
+
+    $("#speelKnoppen").addEventListener("click", async (e) => {
+      const knop = e.target.closest("[data-actie]");
+      if (!knop) return;
+      const actie = knop.dataset.actie;
+      if (actie === "stop" && !confirm("De beurs nu sluiten? Er kan dan niet meer gehandeld worden.")) return;
+      const data = { actie };
+      if (actie === "start") data.minuten = Number($("#speelMinuten").value);
+      if (knop.dataset.minuten) data.minuten = Number(knop.dataset.minuten);
+      try {
+        await post("/api/game", data);
+      } catch (fout) {
+        alert(fout.message);
+      }
+    });
+
+    // --- Tips ---
+
+    function renderTips() {
+      const keuze = $("#tipGroep");
+      const huidig = keuze.value;
+      keuze.innerHTML = "";
+      state.groups.forEach((g) => keuze.add(new Option(g.name, g.id)));
+      if (huidig && state.groups.some((g) => String(g.id) === huidig)) keuze.value = huidig;
+
+      $("#tipLijst").innerHTML = (state.tips || []).slice(0, 5).map((t) =>
+        `<div><b>${esc(t.group)}</b> · ${tijd(t.at)}<br>${esc(t.tekst)}</div>`).join("");
+    }
+
+    $("#tipForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await post("/api/tip", { groep: Number($("#tipGroep").value), tekst: $("#tipTekst").value });
+        $("#tipTekst").value = "";
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    // --- Eindscherm ---
+
+    function toonEindscherm() {
+      const lijst = stand();
+      if (!lijst.length) return;
+      $("#winnaar").textContent = lijst[0].name;
+      $("#eindTekst").textContent = `met een eindbedrag van ${euro(lijst[0].totaal)}`;
+
+      const plek = (g, n) => g ? `
+        <div class="trede plek${n}">
+          <div class="naam">${esc(g.name)}</div>
+          <div class="bedrag">${euro(g.totaal)}</div>
+          <div class="blok-podium">${n}</div>
+        </div>` : "<div></div>";
+      $("#podium").innerHTML = plek(lijst[1], 2) + plek(lijst[0], 1) + plek(lijst[2], 3);
+
+      $("#eindLijst").innerHTML = lijst.map((g, i) => `
+        <tr><td>${i + 1}.</td><td style="text-align:left">${esc(g.name)}</td>
+        <td class="num">${resultaatHtml(g.resultaat)}</td><td class="num"><b>${euro(g.totaal)}</b></td></tr>`).join("");
+
+      $("#einde").hidden = false;
+      confetti();
+    }
+
+    $("#toonEinde").addEventListener("click", toonEindscherm);
+    $("#sluitEinde").addEventListener("click", () => { $("#einde").hidden = true; });
+    $("#meerConfetti").addEventListener("click", confetti);
+
+    function confetti() {
+      const canvas = $("#confetti");
+      const ctx = canvas.getContext("2d");
+      canvas.width = innerWidth;
+      canvas.height = innerHeight;
+      const stukjes = Array.from({ length: 220 }, () => ({
+        x: Math.random() * canvas.width,
+        y: -20 - Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 3,
+        vy: 2 + Math.random() * 4,
+        r: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.3,
+        b: 6 + Math.random() * 8,
+        kleur: kleuren[Math.floor(Math.random() * kleuren.length)]
+      }));
+      const start = performance.now();
+      (function frame(nu) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        stukjes.forEach((s) => {
+          s.x += s.vx; s.y += s.vy; s.r += s.vr;
+          ctx.save();
+          ctx.translate(s.x, s.y);
+          ctx.rotate(s.r);
+          ctx.fillStyle = s.kleur;
+          ctx.fillRect(-s.b / 2, -s.b / 4, s.b, s.b / 2);
+          ctx.restore();
+        });
+        if (nu - start < 7000) requestAnimationFrame(frame);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      })(start);
+    }
+
+    // --- Alles tekenen ---
+
     function renderPostKeuze() {
       const huidig = nAandeel.value;
       nAandeel.innerHTML = "";
@@ -364,14 +760,32 @@
       if (aandelen.includes(huidig)) nAandeel.value = huidig;
     }
 
-    function render(state) {
+    function render(nieuw) {
+      state = nieuw;
+      if (state.serverNow) klokVerschil = state.serverNow - Date.now();
       const postenVeranderd = state.posts.join("|") !== aandelen.join("|");
       aandelen = state.posts;
       if (postenVeranderd) renderPostKeuze();
-      renderKoersen(state);
-      renderNieuws(state);
-      renderTransacties(state);
-      renderRanking(state);
+
+      renderKoersen();
+      renderGrafiek();
+      renderNieuws();
+      renderTransacties();
+      renderRanking();
+      renderSpeelKnoppen();
+      renderTips();
+      tekenSpeelklok();
+
+      const open = handelOpen();
+      ["#randomButton", "#krachKnop", "#hausseKnop"].forEach((s) => { $(s).disabled = !open; });
+      document.querySelector("#eigenNieuws button").disabled = !open;
+
+      // Automatisch eindscherm zodra de beurs sluit
+      if (vorigeStatus && vorigeStatus !== "gesloten" && state.game.status === "gesloten") toonEindscherm();
+      vorigeStatus = state.game.status;
+
+      bewaarKopie();
+      controleerHerstel();
     }
 
     async function post(url, data) {
@@ -391,22 +805,32 @@
 
     // --- Knoppen ---
 
-    const randomButton = document.querySelector("#randomButton");
+    const randomButton = $("#randomButton");
 
     async function willekeurigNieuws() {
+      if (!handelOpen()) return;
       randomButton.disabled = true;
       try {
         await post("/api/news/random");
       } catch (e) {
-        alert(e.message);
+        if (!autoTimer) alert(e.message);
       } finally {
-        randomButton.disabled = false;
+        randomButton.disabled = !handelOpen();
       }
     }
 
     randomButton.addEventListener("click", willekeurigNieuws);
 
-    document.querySelector("#resetButton").addEventListener("click", async () => {
+    $("#krachKnop").addEventListener("click", async () => {
+      if (!confirm("Beurskrach: alle aandelen dalen 15–30%. Doorgaan?")) return;
+      try { await post("/api/news/markt", { type: "krach" }); } catch (e) { alert(e.message); }
+    });
+    $("#hausseKnop").addEventListener("click", async () => {
+      if (!confirm("Hausse: alle aandelen stijgen 15–30%. Doorgaan?")) return;
+      try { await post("/api/news/markt", { type: "hausse" }); } catch (e) { alert(e.message); }
+    });
+
+    $("#resetButton").addEventListener("click", async () => {
       if (!confirm("Weet je het zeker? Alle koersen, kasgeld, aandelen en transacties gaan terug naar het begin.")) return;
       try {
         await post("/api/reset");
@@ -416,16 +840,16 @@
       }
     });
 
-    const nAandeel = document.querySelector("#nAandeel");
+    const nAandeel = $("#nAandeel");
 
-    document.querySelector("#eigenNieuws").addEventListener("submit", async (event) => {
+    $("#eigenNieuws").addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
         await post("/api/news/custom", {
-          titel: document.querySelector("#nTitel").value,
-          tekst: document.querySelector("#nTekst").value,
+          titel: $("#nTitel").value,
+          tekst: $("#nTekst").value,
           stock: nAandeel.value,
-          diff: document.querySelector("#nDiff").value
+          diff: $("#nDiff").value
         });
         event.target.reset();
       } catch (e) {
@@ -437,43 +861,57 @@
 
     let autoTimer = null;
     let volgendeOm = 0;
-    const autoStatus = document.querySelector("#autoStatus");
+    const autoStatus = $("#autoStatus");
+    const intervalInput = $("#autoInterval");
 
-    const intervalInput = document.querySelector("#autoInterval");
-    const MIN_SEC = 5;
-    const MAX_SEC = 3600;
-
-    // Eerder gekozen aantal seconden onthouden op deze computer
     try {
       const bewaard = localStorage.getItem("mm_interval");
       if (bewaard) intervalInput.value = bewaard;
     } catch {}
 
-    // Altijd een geldig getal tussen 5 en 3600 seconden
     function intervalSeconden() {
       let s = Math.round(Number(intervalInput.value));
-      if (!Number.isFinite(s) || s < MIN_SEC) s = MIN_SEC;
-      if (s > MAX_SEC) s = MAX_SEC;
+      if (!Number.isFinite(s) || s < 5) s = 5;
+      if (s > 3600) s = 3600;
       return s;
     }
 
-    function planVolgende() {
-      volgendeOm = Date.now() + intervalSeconden() * 1000;
+    // In de slotfase (laatste 5 minuten) komt het nieuws twee keer zo vaak
+    function slotfase() {
+      return state && state.game.status === "loopt" && restTijd() <= 300000;
     }
 
-    document.querySelector("#autoNieuws").addEventListener("change", (e) => {
+    function planVolgende() {
+      const s = slotfase() ? Math.max(5, Math.round(intervalSeconden() / 2)) : intervalSeconden();
+      volgendeOm = Date.now() + s * 1000;
+    }
+
+    let wasSlotfase = false;
+    $("#autoNieuws").addEventListener("change", (e) => {
       if (e.target.checked) {
         planVolgende();
         autoTimer = setInterval(() => {
+          if (!handelOpen()) {
+            autoStatus.textContent = "Automatisch nieuws wacht tot de beurs open is.";
+            planVolgende();
+            return;
+          }
+          // Net in de slotfase gekomen? Dan meteen het kortere tempo aanhouden
+          const nuSlot = slotfase();
+          if (nuSlot && !wasSlotfase) planVolgende();
+          wasSlotfase = nuSlot;
+
           if (Date.now() >= volgendeOm) {
             willekeurigNieuws();
             planVolgende();
           }
           const over = Math.max(0, Math.round((volgendeOm - Date.now()) / 1000));
-          autoStatus.textContent = `Volgend nieuws over ${Math.floor(over / 60)}:${String(over % 60).padStart(2, "0")}`;
+          autoStatus.innerHTML = `Volgend nieuws over ${Math.floor(over / 60)}:${String(over % 60).padStart(2, "0")}` +
+            (nuSlot ? ` · <span class="slotfase">SLOTFASE: dubbel tempo</span>` : "");
         }, 1000);
       } else {
         clearInterval(autoTimer);
+        autoTimer = null;
         autoStatus.textContent = "";
       }
     });
@@ -484,15 +922,81 @@
       if (autoTimer) planVolgende();
     });
 
+    // --- Reservekopie op deze computer ---
+    // Na elke wijziging (hooguit elke 10 seconden) wordt de volledige spelstand
+    // in de browser bewaard. Start de server leeg op, dan kun je hem terugzetten.
+
+    const KOPIE = "mm_kopie";
+    let laatsteKopie = 0;
+    let kopieGepland = null;
+    let herstelOpen = false;
+    let herstelGecontroleerd = false;
+
+    function leesKopie() {
+      try { return JSON.parse(localStorage.getItem(KOPIE) || "null"); } catch { return null; }
+    }
+
+    function bewaarKopie() {
+      if (herstelOpen || kopieGepland) return;
+      const wacht = Math.max(0, 10000 - (Date.now() - laatsteKopie));
+      kopieGepland = setTimeout(async () => {
+        kopieGepland = null;
+        if (herstelOpen) return;
+        try {
+          const res = await fetch("/api/backup");
+          if (!res.ok) return;
+          const data = await res.json();
+          localStorage.setItem(KOPIE, JSON.stringify(data));
+          laatsteKopie = Date.now();
+        } catch {}
+      }, wacht);
+    }
+
+    function controleerHerstel() {
+      if (herstelGecontroleerd) return;
+      herstelGecontroleerd = true;
+      const kopie = leesKopie();
+      // Alleen aanbieden als de server net leeg is opgestart en de kopie van een ander spel is
+      if (!kopie || !kopie.state || state.bron !== "opstart") return;
+      if (kopie.state.spelId === state.spelId) return;
+      const iets = (kopie.state.transactions || []).length || (kopie.state.news || []).length > 1;
+      if (!iets) return;
+
+      herstelOpen = true;
+      const wanneer = new Date(kopie.gemaakt).toLocaleString("nl-NL", { weekday: "long", hour: "2-digit", minute: "2-digit" });
+      $("#herstelTekst").innerHTML = `<b>De server is opnieuw opgestart en begon met een leeg spel.</b><br>
+        Deze computer heeft een kopie van de spelstand van ${wanneer} (${(kopie.state.transactions || []).length} transacties). Wil je verder waar je gebleven was?`;
+      $("#herstelbalk").hidden = false;
+    }
+
+    $("#herstelKnop").addEventListener("click", async () => {
+      try {
+        await post("/api/herstel", leesKopie());
+        $("#herstelbalk").hidden = true;
+        herstelOpen = false;
+        laatsteKopie = 0;
+      } catch (e) {
+        alert(e.message);
+      }
+    });
+
+    $("#herstelNegeer").addEventListener("click", () => {
+      if (!confirm("De oude kopie wordt dan overschreven door het nieuwe spel. Zeker weten?")) return;
+      $("#herstelbalk").hidden = true;
+      herstelOpen = false;
+      bewaarKopie();
+    });
+
     // --- Klok en live verbinding ---
 
     function klok() {
-      document.querySelector("#clock").textContent = new Date().toLocaleTimeString("nl-NL");
+      $("#clock").textContent = new Date().toLocaleTimeString("nl-NL");
+      tekenSpeelklok();
     }
     setInterval(klok, 1000);
     klok();
 
-    const verbinding = document.querySelector("#verbinding");
+    const verbinding = $("#verbinding");
     const live = new EventSource("/api/events");
 
     live.onopen = () => {

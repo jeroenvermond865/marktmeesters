@@ -73,18 +73,42 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
   Een hernoemde post houdt zijn koers en aandelen. Bij een verwijderde post krijgen groepen hun aandelen terugbetaald.
 - **Koersgrenzen**: minimale en maximale koers.
 - **Startgeld** per groep.
+- **Spelregels**: speelduur, dividend, koersreactie, maximaal lenen en rente.
+- **Nieuwsberichten**: aanpassen, verwijderen, zelf schrijven of laten verzinnen met 🎲 *Verzin een bericht*.
 
 Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naam`). Kies de post dan opnieuw via de startpagina.
 
 ## Beursleiding
 
-- **Willekeurig nieuws**: kiest een nieuwsbericht en past de koersen aan.
-- **Automatisch nieuws**: vinkje aan, dan komt er elke 2/3/5/10 minuten vanzelf nieuws.
-- **Eigen nieuwsbericht**: verzin zelf een kop en kies welk aandeel hoeveel stijgt of daalt.
-- **Reset spel**: alles terug naar het begin (ook kasgeld en aandelen).
+- **Speeltijd**: kies het aantal minuten en klik op *Start de klok*. Je kunt pauzeren, verlengen (+5/−5 min) en de beurs sluiten.
+  In de laatste 5 minuten (slotfase) komt automatisch nieuws twee keer zo vaak. Bij 0:00 sluit de beurs en verschijnt het **eindscherm met podium**.
+- **Willekeurig nieuws** / **automatisch nieuws**: kiest een bericht uit de lijst in de spelinstellingen.
+- **Beurskrach / Hausse**: alle koersen dalen of stijgen in één keer 15–30%.
+- **Eigen nieuwsbericht**: zelf een kop verzinnen en één koers met een bedrag aanpassen.
+- **Geheime tip**: een bericht dat alleen op de ledenpagina van één groep verschijnt.
+- **Koersgrafiek**: het verloop van alle aandelen over het hele spel.
+- **Reset spel**: alles terug naar het begin.
 
-Alles staat op de server, dus pagina's herladen is veilig. Alleen als je de server stopt, is de stand weg.
+## Posten
+
+Een post heeft drie tabbladen:
+
+- **Handel**: kopen en verkopen. Met **voorraad** zijn er maar zoveel aandelen per post (op = op).
+  Met **koersreactie** wordt een aandeel duurder als er veel gekocht wordt, en goedkoper bij verkopen.
+- **Beloning / boete**: geef een groep geld voor een opdracht, of een boete (nooit onder € 0).
+- **Bank**: lenen en aflossen. Over een lening wordt rente berekend.
+
+Groepen krijgen regelmatig **dividend** over de aandelen die ze hebben.
+De eindstand telt: kasgeld + aandelen − lening.
+
+## Spelstand bewaren
+
+- De server bewaart de stand in `spelstand.json`. Na een gewone herstart gaat het spel verder.
+- Op **Render gratis** is die schijf na een herstart leeg. Daarom bewaart de **beurscomputer** zelf ook een kopie.
+  Start de server leeg op, dan verschijnt op het beursscherm een oranje balk: *Spelstand herstellen*.
+- In de spelinstellingen kun je de spelstand ook **downloaden** en later **terugzetten**.
+- Tip: met een gratis dienst als UptimeRobot die de site elke 5 minuten opent, valt Render niet in slaap.
 
 ## Aanpassen
 
-Bovenin `server.js` staan de standaardinstellingen (gebruikt als er nog niets is opgeslagen) en de lijst met nieuwsberichten.
+Bovenin `server.js` staan de standaardinstellingen en standaardnieuwsberichten. Die worden gebruikt als er nog niets is opgeslagen; normaal pas je alles aan via de spelinstellingen.
