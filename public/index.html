@@ -30,6 +30,7 @@
 
     <nav class="lijst">
       <a class="beurs" href="/beurs.html">Beursleiding (groot scherm)</a>
+      <a class="beurs-instellingen" href="/instellingen.html">⚙ Spelinstellingen</a>
       <a href="/post.html?post=Eiland">Post Eiland</a>
       <a href="/post.html?post=Sleper">Post Sleper</a>
       <a href="/post.html?post=Gebouw">Post Gebouw</a>
@@ -47,7 +48,10 @@
       .then((r) => r.json())
       .then((data) => {
         document.querySelector("#rol").textContent = data.rol === "beurs" ? "beursleiding" : "post";
-        if (data.rol !== "beurs") document.querySelector(".beurs").remove();
+        if (data.rol !== "beurs") {
+          document.querySelector(".beurs").remove();
+          document.querySelector(".beurs-instellingen").remove();
+        }
       })
       .catch(() => {});
 

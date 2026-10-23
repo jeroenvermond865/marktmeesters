@@ -23,19 +23,90 @@ const COOKIE = "mm_sessie";
 
 const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
 
-const beginKoersen = {
-  Eiland: 100,
-  Sleper: 105,
-  Gebouw: 95,
-  Loods: 125,
-  Lelievletten: 70
-};
-
-const STARTKAPITAAL = 1000;
-// Namen van de groepen. Voeg een naam toe of haal er een weg om het aantal groepen te veranderen.
-const GROEPSNAMEN = ["Groep 755", "Groep 1063", "Groep 1766", "Groep 1798"];
 const MIN_KOERS = 10;
 const MAX_KOERS = 250;
+const MAX_GROEPEN = 20;
+
+// --- Spelinstellingen ---
+// Dit zijn de standaardinstellingen. Je past ze normaal aan via de pagina
+// "Spelinstellingen" (alleen voor de beursleiding). Wat je daar opslaat,
+// komt in het bestand instellingen.json te staan.
+const standaardInstellingen = {
+  groepen: ["Groep 755", "Groep 1063", "Groep 1766", "Groep 1798"],
+  startkapitaal: 1000,
+  beginKoersen: {
+    Eiland: 100,
+    Sleper: 105,
+    Gebouw: 95,
+    Loods: 125,
+    Lelievletten: 70
+  }
+};
+
+const instellingenBestand = path.join(__dirname, "instellingen.json");
+let instellingen = laadInstellingen();
+
+function laadInstellingen() {
+  try {
+    const bewaard = JSON.parse(fs.readFileSync(instellingenBestand, "utf8"));
+    const fout = controleerInstellingen(bewaard);
+    if (fout) throw new Error(fout);
+    return normaliseer(bewaard);
+  } catch (e) {
+    if (e.code !== "ENOENT") console.log("instellingen.json overgeslagen:", e.message);
+    return normaliseer(standaardInstellingen);
+  }
+}
+
+function bewaarInstellingen() {
+  try {
+    fs.writeFileSync(instellingenBestand, JSON.stringify(instellingen, null, 2));
+  } catch (e) {
+    console.log("Kon instellingen niet opslaan:", e.message);
+  }
+}
+
+// Geeft een foutmelding terug, of null als alles goed is
+function controleerInstellingen(inst) {
+  if (!inst || !Array.isArray(inst.groepen)) return "Groepen ontbreken.";
+  const namen = inst.groepen.map((n) => String(n && n.name !== undefined ? n.name : n).trim());
+  if (namen.length < 1) return "Er moet minstens één groep zijn.";
+  if (namen.length > MAX_GROEPEN) return `Maximaal ${MAX_GROEPEN} groepen.`;
+  if (namen.some((n) => !n)) return "Elke groep heeft een naam nodig.";
+  if (namen.some((n) => n.length > 30)) return "Groepsnamen mogen maximaal 30 tekens zijn.";
+  const uniek = new Set(namen.map((n) => n.toLowerCase()));
+  if (uniek.size !== namen.length) return "Twee groepen hebben dezelfde naam.";
+
+  const kapitaal = Number(inst.startkapitaal);
+  if (!Number.isInteger(kapitaal) || kapitaal < 0 || kapitaal > 1000000) {
+    return "Startgeld moet een heel getal tussen 0 en 1.000.000 zijn.";
+  }
+
+  for (const a of aandelen) {
+    const k = Number(inst.beginKoersen && inst.beginKoersen[a]);
+    if (!Number.isInteger(k) || k < MIN_KOERS || k > MAX_KOERS) {
+      return `Beginkoers van ${a} moet tussen € ${MIN_KOERS} en € ${MAX_KOERS} liggen.`;
+    }
+  }
+  return null;
+}
+
+function normaliseer(inst) {
+  return {
+    groepen: inst.groepen.map((n) => String(n && n.name !== undefined ? n.name : n).trim()),
+    startkapitaal: Number(inst.startkapitaal),
+    beginKoersen: Object.fromEntries(aandelen.map((a) => [a, Number(inst.beginKoersen[a])]))
+  };
+}
+
+function nieuweGroep(id, naam) {
+  return {
+    id,
+    name: naam,
+    cash: instellingen.startkapitaal,
+    shares: Object.fromEntries(aandelen.map((a) => [a, 0]))
+  };
+}
 
 // Nieuwsberichten staan nu op de server: zo blijft alles gelijk,
 // ook als de beurspagina per ongeluk herladen wordt.
@@ -59,14 +130,9 @@ let state;
 
 function nieuwSpel() {
   state = {
-    prices: { ...beginKoersen },
-    previous: { ...beginKoersen },
-    groups: GROEPSNAMEN.map((naam, i) => ({
-      id: i + 1,
-      name: naam,
-      cash: STARTKAPITAAL,
-      shares: Object.fromEntries(aandelen.map((a) => [a, 0]))
-    })),
+    prices: { ...instellingen.beginKoersen },
+    previous: { ...instellingen.beginKoersen },
+    groups: instellingen.groepen.map((naam, i) => nieuweGroep(i + 1, naam)),
     news: [
       {
         at: new Date().toISOString(),
@@ -172,7 +238,8 @@ function ipVan(req) {
 const paginaRechten = {
   "/index.html": ["beurs", "post"],
   "/post.html": ["beurs", "post"],
-  "/beurs.html": ["beurs"]
+  "/beurs.html": ["beurs"],
+  "/instellingen.html": ["beurs"]
 };
 
 const types = {
@@ -248,7 +315,8 @@ const server = http.createServer(async (req, res) => {
         return json(res, 401, { error: "Niet ingelogd." });
       }
 
-      const alleenBeurs = url.startsWith("/api/news/") || url === "/api/reset";
+      const alleenBeurs =
+        url.startsWith("/api/news/") || url === "/api/reset" || url === "/api/settings";
       if (alleenBeurs && rol !== "beurs") {
         return json(res, 403, { error: "Alleen de beursleiding mag dit doen." });
       }
@@ -308,6 +376,54 @@ const server = http.createServer(async (req, res) => {
       state.prices[aandeel] = begrens(oud + diff);
 
       voegNieuwsToe(titel, tekst, [{ stock: aandeel, diff: state.prices[aandeel] - oud }]);
+      stuurUpdate();
+      return json(res, 200, { ok: true });
+    }
+
+    // Spelinstellingen ophalen (met de groepen zoals ze nu in het spel staan)
+    if (req.method === "GET" && url === "/api/settings") {
+      return json(res, 200, {
+        instellingen,
+        groepen: state.groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          cash: g.cash,
+          aandelen: aandelen.reduce((som, a) => som + g.shares[a], 0)
+        })),
+        limieten: { minKoers: MIN_KOERS, maxKoers: MAX_KOERS, maxGroepen: MAX_GROEPEN }
+      });
+    }
+
+    // Spelinstellingen opslaan.
+    // - Nieuwe namen gaan direct in.
+    // - Nieuwe groepen krijgen direct het startgeld.
+    // - Verwijderde groepen verdwijnen direct (met hun geld en aandelen).
+    // - Startgeld en beginkoersen gelden vanaf de volgende reset, of direct als "opnieuwStarten" aan staat.
+    if (req.method === "PUT" && url === "/api/settings") {
+      const body = await leesBody(req);
+      const fout = controleerInstellingen(body);
+      if (fout) return json(res, 400, { error: fout });
+
+      instellingen = normaliseer(body);
+      bewaarInstellingen();
+
+      if (body.opnieuwStarten) {
+        nieuwSpel();
+      } else {
+        const bestaand = new Map(state.groups.map((g) => [g.id, g]));
+        let volgendId = Math.max(0, ...state.groups.map((g) => g.id)) + 1;
+
+        state.groups = body.groepen.map((item, i) => {
+          const id = Number(item && item.id);
+          const groep = bestaand.get(id);
+          if (groep) {
+            groep.name = instellingen.groepen[i];
+            return groep;
+          }
+          return nieuweGroep(volgendId++, instellingen.groepen[i]);
+        });
+      }
+
       stuurUpdate();
       return json(res, 200, { ok: true });
     }

@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spelinstellingen · Marktmeesters</title>
+  <link rel="stylesheet" href="/post.css">
+  <style>
+    main { max-width: 760px; }
+
+    .kaart {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+      padding: 22px;
+      border: 1px solid #29445f;
+      border-radius: 16px;
+      background: var(--card);
+    }
+
+    .kaart h2 { margin: 0; }
+
+    .groeprij {
+      display: grid;
+      grid-template-columns: 1fr auto 48px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .groeprij .info { color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .groeprij .info.nieuw { color: var(--cyan); }
+
+    .verwijder {
+      background: #5a2030;
+      color: var(--white);
+      font-size: 20px;
+      padding: 8px;
+    }
+
+    .toevoegen {
+      background: transparent;
+      color: var(--cyan);
+      border: 1px dashed var(--cyan);
+    }
+
+    .koersen {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .koersen label { font-weight: 600; }
+
+    .knoppen { display: grid; gap: 10px; margin-top: 18px; }
+    .knoppen .tweede { background: var(--orange); }
+
+    .klein-knoppen { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .klein-knoppen button, .klein-knoppen label.knop {
+      background: #071426;
+      color: var(--white);
+      border: 1px solid #52708b;
+      font-weight: 700;
+      text-align: center;
+      padding: 12px;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .klein-knoppen input[type="file"] { display: none; }
+
+    .opmerking { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbalk">
+      <a class="back" href="/beurs.html">← Naar beursleiding</a>
+    </div>
+
+    <p class="eyebrow">MARKTMEESTERS</p>
+    <h1>Spelinstellingen</h1>
+
+    <section class="kaart">
+      <h2>Groepen</h2>
+      <p class="opmerking">Namen, nieuwe groepen en verwijderde groepen gaan direct in na opslaan. Een nieuwe groep krijgt meteen het startgeld.</p>
+      <div id="groepen"></div>
+      <button type="button" class="toevoegen" id="toevoegen">+ Groep toevoegen</button>
+    </section>
+
+    <section class="kaart">
+      <h2>Startgeld</h2>
+      <label>
+        Kasgeld per groep aan het begin (€)
+        <input type="number" id="startkapitaal" min="0" max="1000000" step="1" inputmode="numeric">
+      </label>
+      <p class="opmerking">Geldt voor nieuwe groepen en vanaf de volgende keer dat het spel opnieuw begint.</p>
+    </section>
+
+    <section class="kaart">
+      <h2>Beginkoersen</h2>
+      <div class="koersen" id="koersen"></div>
+      <p class="opmerking" id="koersUitleg">Geldt vanaf de volgende keer dat het spel opnieuw begint.</p>
+    </section>
+
+    <div class="knoppen">
+      <button type="button" id="opslaan">Opslaan</button>
+      <button type="button" class="tweede" id="opslaanReset">Opslaan en spel opnieuw beginnen</button>
+      <p class="melding" id="melding"></p>
+    </div>
+
+    <section class="kaart">
+      <h2>Instellingen bewaren</h2>
+      <p class="opmerking">
+        Op de gratis versie van Render kunnen opgeslagen instellingen verdwijnen als de server herstart.
+        Download ze daarom na het aanpassen, dan kun je ze later met één klik terugzetten.
+      </p>
+      <div class="klein-knoppen">
+        <button type="button" id="download">Download instellingen</button>
+        <label class="knop">
+          Instellingen inladen
+          <input type="file" id="upload" accept=".json,application/json">
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const aandelen = ["Eiland", "Sleper", "Gebouw", "Loods", "Lelievletten"];
+    const $ = (sel) => document.querySelector(sel);
+
+    let rijen = [];          // { id (of null voor nieuw), name, cash, aandelen }
+    let limieten = { minKoers: 10, maxKoers: 250, maxGroepen: 20 };
+    let opgeslagenStart = 0; // startgeld zoals nu opgeslagen
+
+    function euro(bedrag) {
+      return "€ " + Number(bedrag).toLocaleString("nl-NL");
+    }
+
+    function melden(tekst, goed) {
+      $("#melding").textContent = tekst;
+      $("#melding").className = "melding " + (goed ? "goed" : "fout");
+    }
+
+    // --- Groepenlijst ---
+
+    function tekenGroepen() {
+      const doel = $("#groepen");
+      doel.innerHTML = "";
+
+      rijen.forEach((rij, i) => {
+        const div = document.createElement("div");
+        div.className = "groeprij";
+
+        const invoer = document.createElement("input");
+        invoer.value = rij.name;
+        invoer.maxLength = 30;
+        invoer.placeholder = "Naam van de groep";
+        invoer.addEventListener("input", () => { rij.name = invoer.value; });
+
+        const info = document.createElement("span");
+        if (rij.id === null) {
+          info.className = "info nieuw";
+          info.textContent = "nieuw";
+        } else {
+          info.className = "info";
+          info.textContent = euro(rij.cash) + " · " + rij.aandelen + " aand.";
+        }
+
+        const weg = document.createElement("button");
+        weg.type = "button";
+        weg.className = "verwijder";
+        weg.textContent = "×";
+        weg.title = "Groep verwijderen";
+        weg.disabled = rijen.length <= 1;
+        weg.addEventListener("click", () => {
+          rijen.splice(i, 1);
+          tekenGroepen();
+        });
+
+        div.append(invoer, info, weg);
+        doel.append(div);
+      });
+
+      $("#toevoegen").disabled = rijen.length >= limieten.maxGroepen;
+    }
+
+    $("#toevoegen").addEventListener("click", () => {
+      rijen.push({ id: null, name: "Groep " + (rijen.length + 1), cash: 0, aandelen: 0 });
+      tekenGroepen();
+      const invoervelden = document.querySelectorAll("#groepen input");
+      const laatste = invoervelden[invoervelden.length - 1];
+      laatste.focus();
+      laatste.select();
+    });
+
+    // --- Koersen ---
+
+    function tekenKoersen(koersen) {
+      $("#koersen").innerHTML = "";
+      aandelen.forEach((a) => {
+        const label = document.createElement("label");
+        label.textContent = a;
+        const invoer = document.createElement("input");
+        invoer.type = "number";
+        invoer.min = limieten.minKoers;
+        invoer.max = limieten.maxKoers;
+        invoer.step = 1;
+        invoer.value = koersen[a];
+        invoer.dataset.aandeel = a;
+        label.append(invoer);
+        $("#koersen").append(label);
+      });
+      $("#koersUitleg").textContent =
+        `Tussen € ${limieten.minKoers} en € ${limieten.maxKoers}. Geldt vanaf de volgende keer dat het spel opnieuw begint.`;
+    }
+
+    // --- Laden en opslaan ---
+
+    function verzamel() {
+      const beginKoersen = {};
+      document.querySelectorAll("#koersen input").forEach((invoer) => {
+        beginKoersen[invoer.dataset.aandeel] = Number(invoer.value);
+      });
+      return {
+        groepen: rijen.map((r) => ({ id: r.id, name: r.name.trim() })),
+        startkapitaal: Number($("#startkapitaal").value),
+        beginKoersen
+      };
+    }
+
+    async function laad() {
+      const res = await fetch("/api/settings");
+      if (res.status === 401 || res.status === 403) {
+        location.href = "/login.html?terug=/instellingen.html";
+        return;
+      }
+      const data = await res.json();
+      limieten = data.limieten;
+      opgeslagenStart = data.instellingen.startkapitaal;
+      rijen = data.groepen.map((g) => ({ ...g }));
+      $("#startkapitaal").value = data.instellingen.startkapitaal;
+      tekenGroepen();
+      tekenKoersen(data.instellingen.beginKoersen);
+    }
+
+    async function opslaan(opnieuwStarten) {
+      const data = verzamel();
+
+      if (opnieuwStarten) {
+        if (!confirm("Het spel begint opnieuw: alle kasgeld, aandelen, koersen en transacties gaan terug naar het begin. Doorgaan?")) return;
+      } else {
+        // Waarschuwen als er groepen met geld of aandelen verdwijnen
+        const blijft = new Set(data.groepen.map((g) => g.id));
+        const weg = (window.huidigeGroepen || []).filter((g) => !blijft.has(g.id));
+        const metBezit = weg.filter((g) => g.aandelen > 0 || g.cash !== opgeslagenStart);
+        if (metBezit.length) {
+          const namen = metBezit.map((g) => g.name).join(", ");
+          if (!confirm(`Je verwijdert ${namen}. Hun kasgeld en aandelen verdwijnen. Doorgaan?`)) return;
+        }
+      }
+
+      data.opnieuwStarten = !!opnieuwStarten;
+
+      try {
+        const res = await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        if (res.status === 401) {
+          location.href = "/login.html?terug=/instellingen.html";
+          return;
+        }
+        const inhoud = await res.json();
+        if (!res.ok) {
+          melden(inhoud.error || "Opslaan mislukt.", false);
+          return;
+        }
+        melden(opnieuwStarten ? "✓ Opgeslagen, het spel is opnieuw begonnen." : "✓ Opgeslagen.", true);
+        await laad();
+        window.huidigeGroepen = rijen.map((r) => ({ ...r }));
+      } catch {
+        melden("De server is niet bereikbaar.", false);
+      }
+    }
+
+    $("#opslaan").addEventListener("click", () => opslaan(false));
+    $("#opslaanReset").addEventListener("click", () => opslaan(true));
+
+    // --- Download / inladen ---
+
+    $("#download").addEventListener("click", () => {
+      const data = verzamel();
+      const bestand = {
+        groepen: data.groepen.map((g) => g.name),
+        startkapitaal: data.startkapitaal,
+        beginKoersen: data.beginKoersen
+      };
+      const blob = new Blob([JSON.stringify(bestand, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "instellingen.json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    $("#upload").addEventListener("change", async (event) => {
+      const bestand = event.target.files[0];
+      if (!bestand) return;
+      try {
+        const data = JSON.parse(await bestand.text());
+        if (!Array.isArray(data.groepen)) throw new Error();
+
+        // Groepen op volgorde koppelen aan de bestaande groepen, zodat hun stand blijft
+        rijen = data.groepen.map((naam, i) => {
+          const bestaand = (window.huidigeGroepen || [])[i];
+          return bestaand
+            ? { ...bestaand, name: String(naam) }
+            : { id: null, name: String(naam), cash: 0, aandelen: 0 };
+        });
+        if (data.startkapitaal !== undefined) $("#startkapitaal").value = data.startkapitaal;
+        if (data.beginKoersen) tekenKoersen({ ...verzamel().beginKoersen, ...data.beginKoersen });
+        tekenGroepen();
+        melden("Bestand ingeladen. Controleer alles en klik op Opslaan.", true);
+      } catch {
+        melden("Dit bestand kan ik niet lezen. Kies een instellingen.json die je eerder hebt gedownload.", false);
+      }
+      event.target.value = "";
+    });
+
+    laad().then(() => {
+      window.huidigeGroepen = rijen.map((r) => ({ ...r }));
+    }).catch(() => melden("De server is niet bereikbaar.", false));
+  </script>
+</body>
+</html>

@@ -147,6 +147,10 @@
   function verwerkState(nieuw) {
     const vorigeNieuws = state && state.news[0] && state.news[0].at;
     state = nieuw;
+    // Bestaat de gekozen groep niet meer (verwijderd in de instellingen)? Kies dan de eerste.
+    if (!state.groups.some((g) => g.id === gekozenGroep) && state.groups.length) {
+      gekozenGroep = state.groups[0].id;
+    }
     tekenGroepKnoppen();
     tekenGroepen();
     tekenNieuws();
