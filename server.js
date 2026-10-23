@@ -707,7 +707,18 @@ function spelerWeergave(groepId) {
     held: Object.fromEntries(state.posts.map((a) => [a, inBezit(a)])),
     serverNow: Date.now(),
     tips: groep
-      ? tips.filter((t) => t.groupId === groep.id).slice(0, 5).map((t) => ({ at: t.at, tekst: t.tekst }))
+      ? tips.filter((t) => t.groupId === groep.id).slice(0, 5).map((t) => ({
+          at: t.at,
+          tekst: t.tekst,
+          // Wat er gaat gebeuren (alleen bij een tip die echt uitkomt)
+          plan: t.plan ? {
+            stock: t.plan.stock,
+            procent: t.plan.procent,
+            status: t.plan.status,
+            rest: Math.max(0, t.plan.bijActief - state.klok.actief), // ms speeltijd tot het gebeurt
+            uitgevoerdOp: t.plan.uitgevoerdOp || null
+          } : null
+        }))
       : [],
     // De eindstand is pas zichtbaar als de beurs gesloten is
     eindstand: state.game.status === "gesloten" ? rangLijst() : null

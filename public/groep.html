@@ -112,6 +112,23 @@
     .tip p { margin: 6px 0 0; font-size: 18px; font-weight: 700; }
     .tip small { color: var(--muted); }
     .tip.nieuw { animation: flits 1.5s ease-out; }
+    .tip-plan {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 6px 12px;
+      margin: 10px 0 6px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--veld);
+      font-size: 17px;
+    }
+    .tip-plan.op { border-left: 4px solid var(--green); }
+    .tip-plan.neer { border-left: 4px solid var(--red); }
+    .tip-plan.klaar { color: var(--green); }
+    .tip-plan.weg { color: var(--white); border-left: 4px solid var(--orange); background: #ff9d2e22; }
+    .tip.vervallen p { text-decoration: line-through; opacity: .6; }
+    .tip-aftel { font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; color: var(--orange); }
 
     .eindstand { text-align: center; border-color: var(--gold, #ffd166); }
     .eindstand .plek { font-size: 64px; font-weight: 900; color: #ffd166; line-height: 1; }
@@ -251,6 +268,62 @@
       if (t && link && link.getAttribute("href") !== href) link.setAttribute("href", href);
     }
 
+    // Tips tekenen, met wat er gaat gebeuren en een aftelling
+    function tipPlanHtml(p) {
+      if (!p) return "";
+      const omhoog = p.procent > 0;
+      const pijl = omhoog ? "📈" : "📉";
+      const naam = `<b>${esc(p.stock)}</b>`;
+      const procent = `<b>${Math.abs(p.procent)}%</b>`;
+
+      if (p.status === "gepland") {
+        const d = laatsteData;
+        const open = d && d.game && (d.game.status === "vrij" || d.game.status === "loopt");
+        const verstreken = open && d.serverNow ? Math.max(0, Date.now() + klokVerschil - d.serverNow) : 0;
+        const rest = Math.max(0, p.rest - verstreken);
+        return `<div class="tip-plan ${omhoog ? "op" : "neer"}">
+          <span>${pijl} ${naam} ${omhoog ? "stijgt" : "daalt"} ${procent}</span>
+          <span class="tip-aftel">nog ${mmss(rest)}${open ? "" : " ⏸"}</span>
+        </div>`;
+      }
+      if (p.status === "uitgevoerd") {
+        return `<div class="tip-plan klaar"><span>✓ ${pijl} ${naam} is ${omhoog ? "gestegen" : "gedaald"} met ${procent}${p.uitgevoerdOp ? ` om ${tijd(p.uitgevoerdOp)}` : ""}</span></div>`;
+      }
+      if (p.status === "geannuleerd") {
+        return `<div class="tip-plan weg"><span>😢 <b>Helaas!</b> Deze tip gaat toch niet door. ${naam} ${omhoog ? "stijgt" : "daalt"} dus niet.</span></div>`;
+      }
+      return "";
+    }
+
+    let vorigeStatussen = null;
+
+    function tekenTips() {
+      const d = laatsteData;
+      const tips = (d && d.tips) || [];
+      const eersteNieuw = gezieneTips !== null && tips.length && tips[0].at !== gezieneTips;
+
+      // Is een tip net geannuleerd of uitgekomen? Laat dat vak oplichten en trillen.
+      const statussen = tips.map((t) => (t.plan ? t.plan.status : ""));
+      const veranderd = vorigeStatussen
+        ? tips.map((t, i) => vorigeStatussen[t.at] !== undefined && vorigeStatussen[t.at] !== statussen[i])
+        : [];
+      if (veranderd.some(Boolean) && navigator.vibrate) navigator.vibrate([150, 80, 150]);
+      vorigeStatussen = Object.fromEntries(tips.map((t, i) => [t.at, statussen[i]]));
+      $("#tips").innerHTML = tips.slice(0, 2).map((t, i) => `
+        <div class="tip ${(i === 0 && eersteNieuw) || veranderd[i] ? "nieuw" : ""} ${t.plan && t.plan.status === "geannuleerd" ? "vervallen" : ""}">
+          <div class="label">🤫 GEHEIME TIP · ${tijd(t.at)}</div>
+          <p>${esc(t.tekst)}</p>
+          ${tipPlanHtml(t.plan)}
+          <small>Alleen jullie groep ziet dit. Niet doorvertellen!</small>
+        </div>`).join("");
+    }
+
+    // Aftelling van tips elke seconde bijwerken
+    setInterval(() => {
+      const tips = (laatsteData && laatsteData.tips) || [];
+      if (tips.some((t) => t.plan && t.plan.status === "gepland")) tekenTips();
+    }, 1000);
+
     function tijd(iso) {
       return new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
     }
@@ -326,12 +399,7 @@
       // Geheime tips (alleen voor deze groep)
       const tips = data.tips || [];
       const nieuweTip = gezieneTips !== null && tips.length && tips[0].at !== gezieneTips;
-      $("#tips").innerHTML = tips.slice(0, 2).map((t, i) => `
-        <div class="tip ${i === 0 && nieuweTip ? "nieuw" : ""}">
-          <div class="label">🤫 GEHEIME TIP · ${tijd(t.at)}</div>
-          <p>${esc(t.tekst)}</p>
-          <small>Alleen jullie groep ziet dit. Niet doorvertellen!</small>
-        </div>`).join("");
+      tekenTips();
       if (nieuweTip && navigator.vibrate) navigator.vibrate([200, 100, 200]);
       gezieneTips = tips.length ? tips[0].at : "";
 
@@ -411,6 +479,7 @@
       if (bron) bron.close();
       vorigNieuws = null;
       gezieneTips = null;
+      vorigeStatussen = null;
       bron = new EventSource("/api/speler/events" + (groepId ? "?groep=" + groepId : ""));
 
       bron.onopen = () => {
