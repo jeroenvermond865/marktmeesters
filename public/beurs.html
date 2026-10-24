@@ -911,8 +911,25 @@
     document.addEventListener("click", activeerAudio);
     zetGeluidKnop();
 
-    // Eén toon met een zachte aanzet en uitsterven
-    function toon(freq, start, duur, { type = "sine", vol = 0.25, naar = null } = {}) {
+    // Alles loopt via een begrenzer: harder zonder te kraken
+    let uitgang = null;
+    function master() {
+      if (uitgang) return uitgang;
+      const comp = audio.createDynamicsCompressor();
+      comp.threshold.value = -14;
+      comp.knee.value = 6;
+      comp.ratio.value = 8;
+      comp.attack.value = 0.003;
+      comp.release.value = 0.25;
+      const volume = audio.createGain();
+      volume.gain.value = 1.6;
+      comp.connect(volume).connect(audio.destination);
+      uitgang = comp;
+      return uitgang;
+    }
+
+    // Eén toon met een snelle aanzet en uitsterven
+    function toon(freq, start, duur, { type = "sine", vol = 0.35, naar = null } = {}) {
       const t = audio.currentTime + start;
       const osc = audio.createOscillator();
       const gain = audio.createGain();
@@ -920,32 +937,93 @@
       osc.frequency.setValueAtTime(freq, t);
       if (naar) osc.frequency.exponentialRampToValueAtTime(naar, t + duur);
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(vol, t + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + duur);
-      osc.connect(gain).connect(audio.destination);
+      osc.connect(gain).connect(master());
       osc.start(t);
       osc.stop(t + duur + 0.05);
     }
 
-    // Beursbel: een paar heldere slagen met boventonen
-    function bel(slagen) {
+    // Ruis (voor dreun, tromroffel en bekken)
+    function ruis(start, duur, { vol = 0.4, laag = 0, hoog = 20000 } = {}) {
+      const t = audio.currentTime + start;
+      const buffer = audio.createBuffer(1, Math.ceil(audio.sampleRate * duur), audio.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const bron = audio.createBufferSource();
+      bron.buffer = buffer;
+      const hp = audio.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = laag;
+      const lp = audio.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = hoog;
+      const gain = audio.createGain();
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + duur);
+      bron.connect(hp).connect(lp).connect(gain).connect(master());
+      bron.start(t);
+    }
+
+    // Beursbel: harde slagen met boventonen en een diepe gong eronder
+    function bel(slagen, tussen = 0.32) {
       for (let i = 0; i < slagen; i++) {
-        const s = i * 0.42;
-        toon(1046, s, 1.6, { vol: 0.28 });
-        toon(2093, s, 1.0, { vol: 0.12 });
-        toon(3136, s, 0.6, { vol: 0.06 });
+        const s = i * tussen;
+        toon(1046, s, 2.2, { vol: 0.5 });
+        toon(1568, s, 1.4, { vol: 0.25 });
+        toon(2093, s, 1.0, { vol: 0.2 });
+        toon(3136, s, 0.5, { vol: 0.12 });
+        ruis(s, 0.05, { vol: 0.3, laag: 3000 }); // de tik van de klepel
       }
+      toon(131, 0, slagen * tussen + 1.5, { type: "triangle", vol: 0.55 }); // gong
+      toon(65, 0, slagen * tussen + 2, { vol: 0.5 });
+    }
+
+    // Akkoord: meerdere tonen tegelijk
+    function akkoord(freqs, start, duur, opties) {
+      freqs.forEach((f) => toon(f, start, duur, opties));
     }
 
     const geluiden = {
-      start: () => bel(3),
-      einde: () => { bel(6); toon(523, 2.6, 2.5, { type: "triangle", vol: 0.25 }); },
-      krach: () => { for (let i = 0; i < 3; i++) toon(880, i * 0.6, 0.55, { type: "sawtooth", vol: 0.18, naar: 330 }); },
-      hausse: () => { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => toon(f, i * 0.13, i === 5 ? 0.8 : 0.18, { type: "square", vol: 0.12 })); },
-      dividend: () => { [1976, 2637, 1976, 2637].forEach((f, i) => toon(f, i * 0.08, 0.15, { type: "triangle", vol: 0.15 })); },
-      pauze: () => toon(330, 0, 0.8, { type: "triangle", vol: 0.2, naar: 220 }),
-      voorraad: () => toon(880, 0, 0.3, { type: "triangle", vol: 0.18 }),
-      nieuws: () => { toon(1318, 0, 0.25, { vol: 0.22 }); toon(988, 0.18, 0.45, { vol: 0.22 }); }
+      start: () => bel(5),
+      einde: () => {
+        bel(10, 0.28);
+        akkoord([262, 330, 392, 523], 3.0, 3.5, { type: "sawtooth", vol: 0.16 });
+        akkoord([131, 196], 3.0, 3.5, { type: "triangle", vol: 0.4 });
+        ruis(3.0, 2.5, { vol: 0.35, laag: 4000 }); // bekken
+      },
+      krach: () => {
+        // Lange sirene van 4 golven, met een dreunende ondertoon en ruis
+        for (let i = 0; i < 4; i++) {
+          toon(1100, i * 0.7, 0.68, { type: "sawtooth", vol: 0.3, naar: 280 });
+          toon(1110, i * 0.7, 0.68, { type: "square", vol: 0.12, naar: 285 });
+        }
+        toon(55, 0, 3.0, { type: "sawtooth", vol: 0.5, naar: 35 });
+        ruis(0, 3.0, { vol: 0.5, hoog: 400 });   // dreun
+        ruis(2.6, 0.6, { vol: 0.4, laag: 2000 }); // klap aan het eind
+      },
+      hausse: () => {
+        // Tromroffel, dan een volle fanfare
+        for (let i = 0; i < 14; i++) ruis(i * 0.05, 0.06, { vol: 0.25 + i * 0.02, laag: 800, hoog: 6000 });
+        const t = 0.75;
+        [[392, 494, 587], [392, 494, 587], [392, 494, 587], [523, 659, 784]].forEach((a, i) =>
+          akkoord(a, t + i * 0.18, i === 3 ? 1.4 : 0.16, { type: "sawtooth", vol: 0.16 }));
+        akkoord([523, 659, 784, 1046], t + 0.9, 1.8, { type: "square", vol: 0.1 });
+        toon(131, t + 0.72, 1.8, { type: "triangle", vol: 0.5 });
+        ruis(t + 0.72, 1.6, { vol: 0.35, laag: 5000 }); // bekken
+      },
+      dividend: () => {
+        // Waterval van munten
+        for (let i = 0; i < 10; i++) {
+          toon(1976 + (i % 3) * 400, i * 0.07, 0.25, { type: "triangle", vol: 0.3 });
+          toon(2637 + (i % 2) * 300, i * 0.07 + 0.03, 0.2, { type: "sine", vol: 0.2 });
+        }
+      },
+      pauze: () => { toon(392, 0, 0.6, { type: "triangle", vol: 0.45, naar: 196 }); toon(196, 0.5, 1.2, { type: "triangle", vol: 0.45 }); },
+      voorraad: () => { toon(880, 0, 0.25, { type: "square", vol: 0.15 }); toon(1175, 0.15, 0.4, { type: "square", vol: 0.15 }); },
+      nieuws: () => {
+        // Nieuwssignaal: drie heldere tonen omhoog
+        [988, 1319, 1760].forEach((f, i) => {
+          toon(f, i * 0.16, 0.6, { vol: 0.45 });
+          toon(f * 2, i * 0.16, 0.3, { vol: 0.12 });
+        });
+      }
     };
     const voorrang = ["einde", "start", "krach", "hausse", "dividend", "pauze", "nieuws", "voorraad"];
 
