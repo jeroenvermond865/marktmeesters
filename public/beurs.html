@@ -308,6 +308,7 @@
     .scherm-onder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 20px; }
     .scherm-boven > *, .scherm-onder > *, .grafiek-vak { min-width: 0; }
     .scherm-boven .panel, .scherm-onder .panel { margin-top: 0; }
+    .scherm-onder.enkel { grid-template-columns: minmax(0, 1fr); }
     .kolom { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-content: start; min-width: 0; }
 
     /* Tussenstand verborgen */
@@ -427,6 +428,12 @@
 
         <div class="kolom">
         <div class="panel">
+          <div class="tag">NIEUWS</div>
+          <div class="news-feed" id="newsFeed"></div>
+
+        </div>
+
+        <div class="panel">
           <div class="tag">TUSSENSTAND</div>
           <div id="standZichtbaar">
             <table>
@@ -447,12 +454,7 @@
         </div>
     </section>
 
-    <section class="scherm-onder">
-        <div class="panel">
-          <div class="tag">NIEUWS</div>
-          <div class="news-feed" id="newsFeed"></div>
-
-        </div>
+    <section class="scherm-onder enkel">
         <div class="panel">
           <div class="transactions" style="margin-top:0">
             <div class="tag">LAATSTE TRANSACTIES</div>
