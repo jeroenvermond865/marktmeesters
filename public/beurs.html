@@ -308,6 +308,20 @@
     .scherm-onder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 20px; }
     .scherm-boven > *, .scherm-onder > *, .grafiek-vak { min-width: 0; }
     .scherm-boven .panel, .scherm-onder .panel { margin-top: 0; }
+    .kolom { display: grid; gap: 20px; align-content: start; min-width: 0; }
+
+    /* Tussenstand verborgen */
+    .verborgen { display: grid; justify-items: center; gap: 4px; padding: 26px 10px; text-align: center; }
+    .verborgen .slot { font-size: 44px; }
+    .verborgen b { font-size: 22px; }
+    .verborgen span { color: var(--muted); }
+
+    /* Wie heeft wat */
+    .bezit-scroll { overflow-x: auto; }
+    .bezit-tabel th, .bezit-tabel td { text-align: right; padding: 8px 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bezit-tabel th:first-child, .bezit-tabel td:first-child { text-align: left; }
+    .bezit-tabel td.nul { color: var(--muted); opacity: .5; }
+    .bezit-tabel tfoot td, .bezit-tabel tr.totaal td { color: var(--muted); font-weight: 700; border-bottom: 0; }
     @media (max-width: 1100px) {
       .scherm-boven, .scherm-onder { grid-template-columns: 1fr; }
     }
@@ -384,6 +398,7 @@
     <section class="prices" id="prices"></section>
 
     <section class="scherm-boven">
+        <div class="kolom">
         <div class="panel grafiek">
           <div class="grafiek-kop">
             <div class="tag">KOERSVERLOOP</div>
@@ -399,14 +414,36 @@
         </div>
 
         <div class="panel">
+          <div class="tag">WIE HEEFT WAT</div>
+          <div class="bezit-scroll">
+            <table class="bezit-tabel">
+              <thead id="bezitKop"></thead>
+              <tbody id="bezitLijst"></tbody>
+            </table>
+          </div>
+          <p class="status" style="margin-top:10px">Aantal aandelen per groep. Onderaan: hoeveel er in totaal in bezit zijn.</p>
+        </div>
+        </div>
+
+        <div class="kolom">
+        <div class="panel">
           <div class="tag">TUSSENSTAND</div>
-          <table>
-            <thead>
-              <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Lening</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
-            </thead>
-            <tbody id="ranking"></tbody>
-          </table>
-          <p class="status" style="margin-top:10px">+/− = winst of verlies op aandelen. Totaal = kasgeld + aandelen − lening.</p>
+          <div id="standZichtbaar">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Lening</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
+              </thead>
+              <tbody id="ranking"></tbody>
+            </table>
+            <p class="status" style="margin-top:10px">+/− = winst of verlies op aandelen. Totaal = kasgeld + aandelen − lening.</p>
+          </div>
+          <div class="verborgen" id="standVerborgen" hidden>
+            <div class="slot">🔒</div>
+            <b>Tussenstand verborgen</b>
+            <span>Spanning tot het einde!</span>
+          </div>
+        </div>
+
         </div>
     </section>
 
@@ -723,6 +760,21 @@
         </tr>`).join("");
     }
 
+    // Wie heeft wat: groepen × aandelen
+    function renderBezit() {
+      $("#bezitKop").innerHTML = `<tr><th>Groep</th>${aandelen.map((a) => `<th>${esc(a)}</th>`).join("")}</tr>`;
+      const rijen = state.groups.map((g) => `<tr><td>${esc(g.name)}</td>${aandelen.map((a) => {
+        const n = g.shares[a] || 0;
+        return `<td class="${n ? "" : "nul"}">${n ? aantalTekst(n) : "–"}</td>`;
+      }).join("")}</tr>`).join("");
+      const totaal = `<tr class="totaal"><td>In bezit</td>${aandelen.map((a) => {
+        const som = Math.round(state.groups.reduce((s, g) => s + (g.shares[a] || 0), 0) * 10000) / 10000;
+        const max = (state.supply && state.supply[a]) || 0;
+        return `<td>${aantalTekst(som)}${max ? ` / ${max}` : ""}</td>`;
+      }).join("")}</tr>`;
+      $("#bezitLijst").innerHTML = rijen + totaal;
+    }
+
     // --- Speeltijd ---
 
     function tekenSpeelklok() {
@@ -853,6 +905,11 @@
       renderNieuws();
       renderTransacties();
       renderRanking();
+      renderBezit();
+      // Tussenstand verbergen of tonen (vanaf de bediening)
+      const toonStand = !(state.scherm && state.scherm.tussenstand === false);
+      $("#standZichtbaar").hidden = !toonStand;
+      $("#standVerborgen").hidden = toonStand;
       renderTicker();
       tekenSpeelklok();
       speelNieuweGeluiden();

@@ -407,7 +407,7 @@ function nieuwSpel(bron = "reset") {
     // Automatisch nieuws draait op de server, zodat het doorloopt als de telefoon van de leiding op slot gaat
     auto: { aan: false, interval: 180, volgende: null },
     // Wat het grote scherm toont (de leiding kan het eindscherm op afstand aan- en uitzetten)
-    scherm: { einde: false }
+    scherm: { einde: false, tussenstand: true }
   };
   state.spelId = crypto.randomBytes(6).toString("hex");
   state.bron = bron;
@@ -485,7 +485,7 @@ function schoonSpelstand(st) {
       interval: Math.min(3600, Math.max(5, Math.round(getal(st.auto && st.auto.interval, 180)))),
       volgende: st.auto && st.auto.volgende ? getal(st.auto.volgende) : null
     },
-    scherm: { einde: !!(st.scherm && st.scherm.einde) },
+    scherm: { einde: !!(st.scherm && st.scherm.einde), tussenstand: !(st.scherm && st.scherm.tussenstand === false) },
     spelId: String(st.spelId || crypto.randomBytes(6).toString("hex")),
     bron: "hersteld"
   };
@@ -646,7 +646,7 @@ setInterval(() => {
 
   if (state.game.status === "loopt" && nu >= state.game.eind) {
     state.game = { status: "gesloten", eind: null, rest: null };
-    state.scherm = { einde: true };
+    state.scherm.einde = true;
     voegNieuwsToe("De beurs is gesloten!", "De tijd is om. Bekijk de eindstand op het grote scherm.", [], "einde");
     veranderd = true;
   }
@@ -1152,7 +1152,9 @@ const server = http.createServer(async (req, res) => {
     // Eindscherm op het grote scherm tonen of verbergen
     if (req.method === "POST" && url === "/api/scherm") {
       const body = await leesBody(req);
-      state.scherm = { einde: !!body.einde };
+      // Alleen aanpassen wat meegestuurd wordt: einde en/of tussenstand
+      if (body.einde !== undefined) state.scherm.einde = !!body.einde;
+      if (body.tussenstand !== undefined) state.scherm.tussenstand = !!body.tussenstand;
       stuurUpdate();
       return json(res, 200, { ok: true });
     }
@@ -1270,7 +1272,7 @@ const server = http.createServer(async (req, res) => {
       if (body.actie === "start") {
         if (!(minuten >= 1 && minuten <= 600)) return json(res, 400, { error: "Kies een speeltijd tussen 1 en 600 minuten." });
         state.game = { status: "loopt", eind: nu + minuten * 60000, rest: null };
-        state.scherm = { einde: false };
+        state.scherm.einde = false;
         voegNieuwsToe("De beurs is geopend!", `Er wordt ${minuten} minuten gehandeld. Succes!`, [], "start");
       } else if (body.actie === "pauze" && g.status === "loopt") {
         state.game = { status: "pauze", eind: null, rest: Math.max(0, g.eind - nu) };
@@ -1284,11 +1286,11 @@ const server = http.createServer(async (req, res) => {
         else g.rest = Math.max(1000, g.rest + minuten * 60000);
       } else if (body.actie === "stop") {
         state.game = { status: "gesloten", eind: null, rest: null };
-        state.scherm = { einde: true };
+        state.scherm.einde = true;
         voegNieuwsToe("De beurs is gesloten!", "De handel is gestopt. Bekijk de eindstand op het grote scherm.", [], "einde");
       } else if (body.actie === "heropen") {
         state.game = { status: "vrij", eind: null, rest: null };
-        state.scherm = { einde: false };
+        state.scherm.einde = false;
         voegNieuwsToe("De beurs is weer open", "Er kan weer gehandeld worden (zonder tijdslimiet).", [], "start");
       } else {
         return json(res, 400, { error: "Dat kan nu niet." });

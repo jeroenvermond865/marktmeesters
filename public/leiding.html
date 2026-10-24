@@ -215,6 +215,7 @@
     <section class="kaart">
       <h2>📺 Groot scherm</h2>
       <p class="status" id="schermStatus"></p>
+      <button type="button" class="stil" id="standKnop">🙈 Tussenstand verbergen</button>
       <button type="button" class="stil" id="eindeKnop">🏆 Eindscherm tonen</button>
     </section>
 
@@ -547,6 +548,10 @@
     // --- Groot scherm ---
 
     $("#eindeKnop").addEventListener("click", () => doe("/api/scherm", { einde: !(state.scherm && state.scherm.einde) }));
+    $("#standKnop").addEventListener("click", () => {
+      const zichtbaar = !(state.scherm && state.scherm.tussenstand === false);
+      doe("/api/scherm", { tussenstand: !zichtbaar });
+    });
     $("#resetKnop").addEventListener("click", () => {
       if (confirm("Weet je het zeker? Alle koersen, kasgeld, aandelen en transacties gaan terug naar het begin.")) doe("/api/reset");
     });
@@ -588,9 +593,13 @@
 
       const einde = state.scherm && state.scherm.einde;
       $("#eindeKnop").textContent = einde ? "Eindscherm verbergen" : "🏆 Eindscherm tonen";
-      $("#schermStatus").textContent = einde
+      const standZichtbaar = !(state.scherm && state.scherm.tussenstand === false);
+      $("#standKnop").textContent = standZichtbaar ? "🙈 Tussenstand verbergen" : "👀 Tussenstand weer tonen";
+      $("#standKnop").className = standZichtbaar ? "stil" : "oranje";
+      $("#schermStatus").textContent = (einde
         ? "Het grote scherm toont nu het eindscherm met podium."
-        : "Het grote scherm toont de koersen. Bij sluiten van de beurs komt het eindscherm vanzelf.";
+        : "Het grote scherm toont de koersen. Bij sluiten van de beurs komt het eindscherm vanzelf.") +
+        (standZichtbaar ? "" : " De tussenstand is verborgen.");
 
       tekenBank();
       tekenVoorraad();
