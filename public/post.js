@@ -412,6 +412,23 @@
     if (t && link && link.getAttribute("href") !== href) link.setAttribute("href", href);
   }
 
+  // Snelknoppen voor beloningen: 5%, 10%, 25% en 50% van het startgeld (afgerond op mooie bedragen)
+  let vorigStart = null;
+  function zetSnelknoppen() {
+    const start = (state && state.startkapitaal) || 100;
+    if (start === vorigStart) return;
+    const eersteKeer = vorigStart === null;
+    vorigStart = start;
+    const mooi = (x) => {
+      if (x < 1) return 1;
+      const stap = x >= 500 ? 50 : x >= 100 ? 10 : x >= 20 ? 5 : 1;
+      return Math.max(stap, Math.round(x / stap) * stap);
+    };
+    const bedragen = [0.05, 0.1, 0.25, 0.5].map((f) => mooi(start * f));
+    $("#bonusSnel").innerHTML = bedragen.map((b) => `<button type="button" data-bedrag="${b}">${b}</button>`).join("");
+    if (eersteKeer) $("#bonusBedrag").value = bedragen[1];
+  }
+
   function verwerkState(nieuw) {
     const vorigeNieuws = state && state.news[0] && state.news[0].at;
     state = nieuw;
@@ -426,6 +443,7 @@
       gekozenGroep = state.groups[0].id;
     }
     zetDeelKnoppen();
+    zetSnelknoppen();
     tekenGroepKnoppen();
     tekenGroepen();
     tekenNieuws();

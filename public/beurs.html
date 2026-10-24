@@ -379,7 +379,7 @@
         <a class="terug" href="/">← Alle pagina's</a>
         <button type="button" class="terug geluidknop" id="geluidKnop">🔇 Geluid aanzetten</button>
         <div class="tag">SCOUTING HANDELSSPEL</div>
-        <h1>AANDELENBEURS NIEUWE VAART</h1>
+        <h1>AANDELENBEURS <span id="plaatsnaam">NIEUWE VAART</span></h1>
       </div>
       <div>
         <div class="klokken">
@@ -909,6 +909,11 @@
     function render(nieuw) {
       state = nieuw;
       zetThema(state.thema);
+      // Plaatsnaam uit de spelinstellingen in de titel
+      if (state.plaatsnaam) {
+        $("#plaatsnaam").textContent = state.plaatsnaam.toUpperCase();
+        document.title = "Aandelenbeurs " + state.plaatsnaam + " · Marktmeesters";
+      }
       if (state.serverNow) klokVerschil = state.serverNow - Date.now();
       aandelen = state.posts;
 

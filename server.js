@@ -35,15 +35,16 @@ const standaardInstellingen = {
   groepen: ["Groep 755", "Groep 1063", "Groep 1766", "Groep 1798"],
   // voorraad: hoeveel aandelen er van deze post maximaal in omloop zijn (0 = onbeperkt)
   posten: [
-    { naam: "Eiland", beginKoers: 100, voorraad: 20 },
-    { naam: "Sleper", beginKoers: 105, voorraad: 20 },
-    { naam: "Gebouw", beginKoers: 95, voorraad: 20 },
-    { naam: "Loods", beginKoers: 125, voorraad: 20 },
+    { naam: "Eiland", beginKoers: 30, voorraad: 20 },
+    { naam: "Sleper", beginKoers: 60, voorraad: 20 },
+    { naam: "Gebouw", beginKoers: 20, voorraad: 20 },
+    { naam: "Loods", beginKoers: 35, voorraad: 20 },
     { naam: "Lelievletten", beginKoers: 70, voorraad: 20 }
   ],
-  startkapitaal: 1000,
+  startkapitaal: 100,
+  plaatsnaam: "Nieuwe Vaart", // staat in de titel van het grote scherm en in het nieuws ({plaats})
   minKoers: 10,
-  maxKoers: 250,
+  maxKoers: 100,
   regels: standaardRegels(),
   thema: "roze", // zie de kleurthema's hieronder
   nieuws: null // null = de standaardberichten (zie standaardNieuws)
@@ -58,6 +59,7 @@ const themas = {
   bos:    { naam: "Bosgroen",    bg: "#061a11", top: "#134229", card: "#0e2c1d", kaart2: "#143a27", kaart3: "#0a2216", paneel: "#081d13e6", rand: "#285a3f", rand2: "#4f8a69", veld: "#05140d", accent: "#7ee081", accent2: "#ffc95c", muted: "#b4d3c1", gevaar: "#5c2a1f" },
   oranje: { naam: "Zonsondergang", bg: "#1f0c05", top: "#552108", card: "#341509", kaart2: "#45200e", kaart3: "#281006", paneel: "#240e06e6", rand: "#6f3518", rand2: "#a5623a", veld: "#170903", accent: "#ff9d42", accent2: "#ffd166", muted: "#e6c3ad", gevaar: "#6a1f1f" },
   rood:   { naam: "Scoutingrood", bg: "#1c0708", top: "#4d1214", card: "#320d0f", kaart2: "#441316", kaart3: "#26090b", paneel: "#220809e6", rand: "#6b2427", rand2: "#a24e52", veld: "#150506", accent: "#ff6b6b", accent2: "#ffd166", muted: "#e8c1c1", gevaar: "#6b1a2a" },
+  geel:   { naam: "Geel",        bg: "#1c1604", top: "#4a3a06", card: "#2f2508", kaart2: "#3d300b", kaart3: "#251d06", paneel: "#211a05e6", rand: "#6b5718", rand2: "#a08a3c", veld: "#151003", accent: "#ffd60a", accent2: "#4cc9f0", muted: "#e8dcae", gevaar: "#6b2a12" },
   nacht:  { naam: "Nacht (zwart)", bg: "#0b0b0d", top: "#25262b", card: "#18191d", kaart2: "#202126", kaart3: "#131417", paneel: "#111114e6", rand: "#34363d", rand2: "#5b5e68", veld: "#0a0a0c", accent: "#f2f2f2", accent2: "#ffb347", muted: "#b5b7bf", gevaar: "#5a2030" }
 };
 const STANDAARD_THEMA = "roze";
@@ -83,10 +85,10 @@ function standaardRegels() {
     koersImpact: 1,       // % koersverandering per gekocht/verkocht aandeel
     renteProcent: 5,      // % rente op een lening
     renteInterval: 10,    // elke zoveel minuten
-    maxLening: 1000,      // maximaal te lenen bedrag per groep (0 = lenen uit)
+    maxLening: 100,       // maximaal te lenen bedrag per groep (0 = lenen uit)
     kleinsteDeel: 0.1,    // kleinste deel van een aandeel dat je kunt kopen (1 = alleen hele)
-    nieuwsKracht: 150,    // % — hoe heftig willekeurig nieuws is (100 = zoals in de berichten staat)
-    terugTrek: 40         // 0–100 — hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat
+    nieuwsKracht: 225,    // % — hoe heftig willekeurig nieuws is (100 = zoals in de berichten staat)
+    terugTrek: 60         // 0–100 — hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat
   };
 }
 
@@ -178,7 +180,7 @@ function controleerInstellingen(inst) {
   }
 
   const min = Number(inst.minKoers ?? 10);
-  const max = Number(inst.maxKoers ?? 250);
+  const max = Number(inst.maxKoers ?? 100);
   if (!Number.isInteger(min) || min < 1) return "De minimale koers moet een heel getal van minstens € 1 zijn.";
   if (!Number.isInteger(max) || max > 1000000) return "De maximale koers mag niet hoger zijn dan € 1.000.000.";
   if (min >= max) return "De minimale koers moet lager zijn dan de maximale koers.";
@@ -216,6 +218,11 @@ function controleerInstellingen(inst) {
   }
 
   if (inst.thema !== undefined && !Object.hasOwn(themas, String(inst.thema))) return "Onbekend kleurthema.";
+  if (inst.plaatsnaam !== undefined) {
+    const p = String(inst.plaatsnaam).trim();
+    if (!p) return "Vul een plaatsnaam in (bijv. Nieuwe Vaart).";
+    if (p.length > 40) return "De plaatsnaam mag maximaal 40 tekens zijn.";
+  }
 
   const regels = { ...standaardRegels(), ...(inst.regels || {}) };
   for (const [sleutel, [laag, hoog, naam]] of Object.entries(regelGrenzen)) {
@@ -238,8 +245,9 @@ function normaliseer(inst) {
     })),
     startkapitaal: Number(inst.startkapitaal),
     minKoers: Number(inst.minKoers ?? 10),
-    maxKoers: Number(inst.maxKoers ?? 250),
+    maxKoers: Number(inst.maxKoers ?? 100),
     thema: Object.hasOwn(themas, String(inst.thema)) ? String(inst.thema) : STANDAARD_THEMA,
+    plaatsnaam: String(inst.plaatsnaam ?? "Nieuwe Vaart").trim() || "Nieuwe Vaart",
     regels: Object.fromEntries(
       Object.keys(regelGrenzen).map((k) => [k, Number({ ...standaardRegels(), ...(inst.regels || {}) }[k])])
     ),
@@ -317,7 +325,7 @@ const standaardNieuws = [
   { titel: "Loods volledig verhuurd", tekst: "Alle opslagruimte is voor de komende maanden gereserveerd.", effecten: [e("Loods", 20, 38)] },
   { titel: "Lelievletten winnen regatta", tekst: "De zichtbaarheid op het water zorgt voor extra belangstelling.", effecten: [e("Lelievletten", 16, 30)] },
   { titel: "Nieuwe huurder voor het gebouw", tekst: "Een langlopend contract geeft beleggers vertrouwen.", effecten: [e("Gebouw", 15, 28)] },
-  { titel: "Storm boven Nieuwe Vaart", tekst: "Schade en vertraging raken meerdere onderdelen van de haven.", effecten: [e("Eiland", -18, -8), e("Sleper", -16, -7), e("Lelievletten", -20, -9)] },
+  { titel: "Storm boven {plaats}", tekst: "Schade en vertraging raken meerdere onderdelen van de haven.", effecten: [e("Eiland", -18, -8), e("Sleper", -16, -7), e("Lelievletten", -20, -9)] },
   { titel: "Zonnig weekend trekt bezoekers", tekst: "De haven bruist en de belangstelling groeit.", effecten: [e("Eiland", 10, 22), e("Loods", 12, 25)] },
   { titel: "Onderhoudsbudget goedgekeurd", tekst: "De sleper en het gebouw krijgen zekerheid voor komend seizoen.", effecten: [e("Sleper", 14, 29), e("Gebouw", 12, 24)] },
   { titel: "Vergunning voor loods vertraagd", tekst: "De geplande uitbreiding moet wachten op een besluit.", effecten: [e("Loods", -19, -8)] },
@@ -336,13 +344,13 @@ const standaardNieuws = [
   { titel: "Sleper trekt vastgelopen schip los", tekst: "De bemanning wordt als held binnengehaald in de haven.", effecten: [e("Sleper", 18, 32)] },
   { titel: "Lekke vlet bij de lelievletten", tekst: "Eén boot ligt op de kant voor reparatie.", effecten: [e("Lelievletten", -18, -7)] },
   { titel: "Gebouw krijgt nieuwe verf", tekst: "Na een klusdag ziet het gebouw er weer als nieuw uit.", effecten: [e("Gebouw", 10, 22)] },
-  { titel: "Hoogwater in Nieuwe Vaart", tekst: "Het eiland is maar half bereikbaar, de boten hebben het druk.", effecten: [e("Eiland", -16, -6), e("Sleper", 8, 18), e("Lelievletten", 6, 15)] },
+  { titel: "Hoogwater in {plaats}", tekst: "Het eiland is maar half bereikbaar, de boten hebben het druk.", effecten: [e("Eiland", -16, -6), e("Sleper", 8, 18), e("Lelievletten", 6, 15)] },
   { titel: "Jaarlijkse scoutingdag aangekondigd", tekst: "Alle onderdelen van de haven verwachten veel bezoekers.", effecten: [e("Eiland", 6, 14), e("Gebouw", 6, 14), e("Loods", 6, 14)] },
   { titel: "Pionierhout op, loods leeg", tekst: "Er moet dringend nieuw hout besteld worden.", effecten: [e("Loods", -15, -5), e("*", 5, 12)] },
   { titel: "Diesel flink duurder", tekst: "Varen kost ineens veel meer geld.", effecten: [e("Sleper", -20, -9), e("Lelievletten", -12, -4)] },
   { titel: "Opkomst bij de opkomst!", tekst: "Er melden zich tien nieuwe leden aan; het gebouw raakt vol.", effecten: [e("Gebouw", 16, 30)] },
   { titel: "Fietsenrek bij het gebouw gesloopt", tekst: "Een vrachtwagen reed er dwars doorheen.", effecten: [e("Gebouw", -14, -5)] },
-  { titel: "Zeilwedstrijd op Nieuwe Vaart", tekst: "Iedereen wil een boot, de vletten zijn niet aan te slepen.", effecten: [e("Lelievletten", 18, 34), e("Sleper", 5, 12)] },
+  { titel: "Zeilwedstrijd op {plaats}", tekst: "Iedereen wil een boot, de vletten zijn niet aan te slepen.", effecten: [e("Lelievletten", 18, 34), e("Sleper", 5, 12)] },
   { titel: "Vossenjacht op het eiland", tekst: "Spelers kruipen door de bosjes, de bezoekersaantallen pieken.", effecten: [e("Eiland", 14, 28)] },
   { titel: "Inspectie keurt de sleper af", tekst: "Er moet eerst een nieuwe reddingsboei aan boord.", effecten: [e("Sleper", -26, -12)] },
   { titel: "Grote bestelling bij de loods", tekst: "Een kamp in de buurt huurt alle tenten en materialen.", effecten: [e("Loods", 16, 30)] },
@@ -350,7 +358,39 @@ const standaardNieuws = [
   { titel: "Insider-gerucht over {post}", tekst: "Volgens ingewijden gaat er iets groots gebeuren bij {post}.", effecten: [e("*", 15, 40)] },
   { titel: "Schandaal bij {post}", tekst: "De penningmeester van {post} is de kas kwijtgeraakt.", effecten: [e("*", -30, -12)] },
   { titel: "Influencer bezoekt {post}", tekst: "Een filmpje over {post} gaat viraal in de regio.", effecten: [e("*", 12, 28)] },
-  { titel: "Verloren sleutelbos bij {post}", tekst: "Niemand kan erin; de boel ligt even stil bij {post}.", effecten: [e("*", -14, -6)] }
+  { titel: "Verloren sleutelbos bij {post}", tekst: "Niemand kan erin; de boel ligt even stil bij {post}.", effecten: [e("*", -14, -6)] },
+
+  // Nog 30 berichten
+  { titel: "Vuurwerkshow boven het eiland", tekst: "Heel {plaats} kwam kijken; de oevers stonden vol.", effecten: [e("Eiland", 14, 28)] },
+  { titel: "Teken op het eiland gesignaleerd", tekst: "De GGD raadt aan om lange broeken te dragen.", effecten: [e("Eiland", -20, -8)] },
+  { titel: "Eiland krijgt eigen vlaggenmast", tekst: "Na jaren wapperen er eindelijk vlaggen op het eiland.", effecten: [e("Eiland", 8, 18)] },
+  { titel: "Brug naar het eiland afgesloten", tekst: "Onderhoud aan de brug: alleen nog bereikbaar per boot.", effecten: [e("Eiland", -16, -6), e("Lelievletten", 8, 16)] },
+  { titel: "Sleper wint sleepwedstrijd", tekst: "De sleper trok drie boten tegelijk en won met afstand.", effecten: [e("Sleper", 16, 30)] },
+  { titel: "Schroef van de sleper vast in waterplanten", tekst: "Duikers zijn de hele middag bezig geweest.", effecten: [e("Sleper", -22, -10)] },
+  { titel: "Sleper gehuurd voor bruiloft", tekst: "Een bruidspaar vaart in stijl naar het feest.", effecten: [e("Sleper", 10, 22)] },
+  { titel: "Nieuwe kok in het gebouw", tekst: "Sinds de nieuwe kok er is, wil iedereen binnen eten.", effecten: [e("Gebouw", 14, 26)] },
+  { titel: "Muizen in de keuken van het gebouw", tekst: "De keuken gaat een dag dicht voor een grote schoonmaak.", effecten: [e("Gebouw", -24, -10)] },
+  { titel: "Gebouw wint prijs voor duurzaamheid", tekst: "Zonnepanelen en een regenton leveren een prijs op.", effecten: [e("Gebouw", 12, 24)] },
+  { titel: "Loods ontdekt zolder vol oude tenten", tekst: "Bij het opruimen kwam een schat aan materiaal tevoorschijn.", effecten: [e("Loods", 12, 26)] },
+  { titel: "Dak van de loods lekt", tekst: "Na de bui staat alles nat; het hout moet drogen.", effecten: [e("Loods", -20, -8)] },
+  { titel: "Loods verhuurt materiaal aan zomerkamp", tekst: "Drie busladingen materiaal gaan de deur uit.", effecten: [e("Loods", 14, 28)] },
+  { titel: "Lelievletten in nieuwe kleuren geverfd", tekst: "De vloot glimt weer; iedereen wil een rondje varen.", effecten: [e("Lelievletten", 12, 24)] },
+  { titel: "Peddels van de lelievletten kwijt", tekst: "Iemand heeft alle peddels op een verkeerde plek gelegd.", effecten: [e("Lelievletten", -20, -8)] },
+  { titel: "Kanotocht door {plaats} groot succes", tekst: "Honderd deelnemers in één middag.", effecten: [e("Lelievletten", 10, 22), e("Eiland", 5, 12)] },
+  { titel: "Hittegolf in {plaats}", tekst: "Iedereen zoekt verkoeling op het water.", effecten: [e("Lelievletten", 12, 24), e("Sleper", 8, 16), e("Gebouw", -12, -4)] },
+  { titel: "Dagenlang regen in {plaats}", tekst: "Binnen is het druk, buiten is het verlaten.", effecten: [e("Gebouw", 10, 20), e("Eiland", -14, -6), e("Lelievletten", -12, -4)] },
+  { titel: "Groot scoutingfeest in {plaats}", tekst: "Alle onderdelen van de haven doen mee.", effecten: [e("Eiland", 6, 14), e("Sleper", 6, 14), e("Gebouw", 6, 14), e("Loods", 6, 14), e("Lelievletten", 6, 14)] },
+  { titel: "Gemeente verhoogt de huur", tekst: "Alle onderdelen in {plaats} moeten meer betalen.", effecten: [e("Gebouw", -12, -4), e("Loods", -12, -4), e("Eiland", -10, -3)] },
+  { titel: "Kampvuurlied gaat viraal", tekst: "Een filmpje bij {post} wordt honderdduizend keer bekeken.", effecten: [e("*", 15, 32)] },
+  { titel: "Inbraak bij {post}", tekst: "Er is materiaal gestolen; de politie doet onderzoek.", effecten: [e("*", -26, -10)] },
+  { titel: "Ballonnenwedstrijd vertrekt bij {post}", tekst: "Honderden ballonnen, honderden bezoekers.", effecten: [e("*", 10, 22)] },
+  { titel: "Stroomstoring treft {post}", tekst: "Alles ligt stil tot de netbeheerder er is.", effecten: [e("*", -16, -6)] },
+  { titel: "Bekende scout bezoekt {post}", tekst: "Er worden handtekeningen uitgedeeld.", effecten: [e("*", 12, 26)] },
+  { titel: "{post} vergeet de verzekering", tekst: "Een dure fout: het bestuur moet bijspringen.", effecten: [e("*", -22, -8)] },
+  { titel: "Bevers houden open dag bij {post}", tekst: "Ouders en kinderen komen massaal kijken.", effecten: [e("*", 8, 18)] },
+  { titel: "Geruchten over sluiting van {post}", tekst: "Niemand weet of het waar is, maar beleggers schrikken.", effecten: [e("*", -18, -6)] },
+  { titel: "{post} krijgt landelijke subsidie", tekst: "Een flinke zak geld voor de komende jaren.", effecten: [e("*", 18, 34)] },
+  { titel: "Ruzie in het bestuur van {post}", tekst: "Er wordt over geld en planning geschreeuwd.", effecten: [e("*", -20, -8)] }
 ];
 
 // Hoe ver een aandeel van zijn beginwaarde af staat (0 = op beginwaarde, + = hoger, − = lager).
@@ -400,7 +440,7 @@ function kiesNieuws() {
       }
       const n = Object.keys(effect).length;
       if (!n) return null;
-      const vul = (t) => (gebruiktWillekeurig ? t.replaceAll("{post}", willekeurig) : t);
+      const vul = (t) => (gebruiktWillekeurig ? t.replaceAll("{post}", willekeurig) : t).replaceAll("{plaats}", instellingen.plaatsnaam);
       return { titel: vul(item.titel), tekst: vul(item.tekst), effect, w: gewicht(score / n) };
     })
     .filter(Boolean);
@@ -551,6 +591,8 @@ function werkRegelsBij() {
   state.rules = { ...instellingen.regels };
   state.supply = Object.fromEntries(instellingen.posten.map((p) => [p.naam, p.voorraad]));
   state.thema = instellingen.thema;
+  state.plaatsnaam = instellingen.plaatsnaam;
+  state.startkapitaal = instellingen.startkapitaal;
 }
 
 instellingen = laadInstellingen();
@@ -791,6 +833,7 @@ function spelerWeergave(groepId) {
       : [],
     game: state.game,
     thema: state.thema,
+    plaatsnaam: state.plaatsnaam,
     rules: state.rules,
     serverNow: Date.now(),
     tips: groep

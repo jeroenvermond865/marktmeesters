@@ -74,7 +74,8 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
   Een hernoemde post houdt zijn koers en aandelen. Bij een verwijderde post krijgen groepen hun aandelen terugbetaald.
 - **Koersgrenzen**: minimale en maximale koers.
 - **Startgeld** per groep.
-- **Kleuren**: kies een kleurthema voor alle schermen (standaard roze).
+- **Naam van de beurs**: de plaatsnaam (standaard Nieuwe Vaart) in de titel en het nieuws.
+- **Kleuren**: kies een kleurthema voor alle schermen (standaard roze, ook geel).
 - **Spelregels**: heftigheid van nieuws, terugtrekkracht (aandelen blijven niet hangen), speelduur, dividend, koersreactie, maximaal lenen en rente.
 - **Nieuwsberichten**: aanpassen, verwijderen, zelf schrijven of laten verzinnen met 🎲 *Verzin een bericht*.
 

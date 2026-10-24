@@ -173,6 +173,15 @@
     </section>
 
     <section class="kaart">
+      <h2>Naam van de beurs</h2>
+      <label>
+        Plaatsnaam
+        <input id="plaatsnaam" maxlength="40" placeholder="Nieuwe Vaart">
+      </label>
+      <p class="opmerking">Komt in de titel van het grote scherm ("Aandelenbeurs …") en in nieuwsberichten. Zet <b>{plaats}</b> in een eigen nieuwsbericht om deze naam te gebruiken.</p>
+    </section>
+
+    <section class="kaart">
       <h2>Kleuren</h2>
       <p class="opmerking">Kies een kleurthema voor alle schermen: beurs, posten, ledenpagina en inloggen. Je ziet het meteen op deze pagina; na Opslaan wisselen alle schermen mee.</p>
       <div class="themas" id="themas"></div>
@@ -254,7 +263,7 @@
       <h2>Nieuwsberichten <small class="opmerking" id="nieuwsAantal"></small></h2>
       <p class="opmerking">
         Deze berichten kiest de knop "Willekeurig nieuws". Het effect is een percentage van de koers: bij <b>van -20 tot -8</b> daalt de koers 8 tot 20%.
-        Kies <b>Willekeurige post</b> om een bericht bij elke post te laten passen; zet dan <b>{post}</b> in de kop of tekst voor de naam.
+        Kies <b>Willekeurige post</b> om een bericht bij elke post te laten passen; zet dan <b>{post}</b> in de kop of tekst voor de naam. <b>{plaats}</b> wordt de plaatsnaam.
       </p>
       <div class="nieuwsbalk-knoppen">
         <button type="button" class="verzin" id="verzin">🎲 Verzin een bericht</button>
@@ -609,6 +618,7 @@
         startkapitaal: Number($("#startkapitaal").value),
         minKoers: Number($("#minKoers").value),
         maxKoers: Number($("#maxKoers").value),
+        plaatsnaam: $("#plaatsnaam").value.trim() || "Nieuwe Vaart",
         thema: gekozenThema,
         regels,
         nieuws: berichten.map((b) => ({
@@ -620,6 +630,7 @@
     }
 
     function vulFormulier(inst) {
+      if (inst.plaatsnaam !== undefined) $("#plaatsnaam").value = inst.plaatsnaam;
       if (inst.thema && themas[inst.thema]) {
         gekozenThema = inst.thema;
         document.getElementById("thema").setAttribute("href", "/thema.css?thema=" + inst.thema);
@@ -747,6 +758,7 @@
         minKoers: data.minKoers,
         maxKoers: data.maxKoers,
         thema: data.thema,
+        plaatsnaam: data.plaatsnaam,
         regels: data.regels,
         nieuws: data.nieuws
       });
@@ -790,6 +802,7 @@
           maxKoers: data.maxKoers ?? $("#maxKoers").value,
           regels: data.regels,
           thema: data.thema,
+          plaatsnaam: data.plaatsnaam,
           nieuws: data.nieuws
         });
 
