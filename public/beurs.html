@@ -308,7 +308,7 @@
     .scherm-onder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 20px; }
     .scherm-boven > *, .scherm-onder > *, .grafiek-vak { min-width: 0; }
     .scherm-boven .panel, .scherm-onder .panel { margin-top: 0; }
-    .kolom { display: grid; gap: 20px; align-content: start; min-width: 0; }
+    .kolom { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-content: start; min-width: 0; }
 
     /* Tussenstand verborgen */
     .verborgen { display: grid; justify-items: center; gap: 4px; padding: 26px 10px; text-align: center; }
@@ -829,21 +829,31 @@
           <div class="waarom">${p.waarom}</div>
         </div>`).join("") || `<p class="ondertitel">Nog geen bijzondere prestaties.</p>`;
 
+      // Net geopend? Dan altijd beginnen met het podium (en de 15 seconden opnieuw laten lopen)
+      if ($("#einde").hidden) { eindDeel = 1; toonEindDeel(); startEindWissel(); }
       $("#einde").hidden = false;
       confetti();
     }
 
     // Het eindscherm wisselt om de 15 seconden tussen podium en prijzen (op een beamer scrolt niemand)
     let eindDeel = 1;
-    setInterval(() => {
-      if ($("#einde").hidden) { eindDeel = 1; return; }
-      eindDeel = eindDeel === 1 ? 2 : 1;
+    let eindWissel = null;
+    function toonEindDeel() {
       $("#eindDeel1").hidden = eindDeel !== 1;
       $("#eindDeel2").hidden = eindDeel !== 2;
       $("#stip1").className = eindDeel === 1 ? "aan" : "";
       $("#stip2").className = eindDeel === 2 ? "aan" : "";
-      if (eindDeel === 1) confetti();
-    }, 15000);
+    }
+    function startEindWissel() {
+      clearInterval(eindWissel);
+      eindWissel = setInterval(() => {
+        if ($("#einde").hidden) { eindDeel = 1; return; }
+        eindDeel = eindDeel === 1 ? 2 : 1;
+        toonEindDeel();
+        if (eindDeel === 1) confetti();
+      }, 15000);
+    }
+    startEindWissel();
 
     // Eindscherm bijwerken zonder opnieuw confetti (bijv. als er nog iets verandert)
     function werkEindschermBij() {
