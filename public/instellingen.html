@@ -193,6 +193,16 @@
           <span>Hoe vaak het dividend wordt uitbetaald</span>
           <input type="number" data-regel="dividendInterval" step="1" inputmode="numeric">
         </label>
+        <label>Kleinste deel van een aandeel
+          <span>Hoe klein een stukje aandeel mag zijn</span>
+          <select data-regel="kleinsteDeel">
+            <option value="1">1 (alleen hele aandelen)</option>
+            <option value="0.5">½ aandeel</option>
+            <option value="0.25">¼ aandeel</option>
+            <option value="0.1">0,1 aandeel</option>
+            <option value="0.01">0,01 aandeel</option>
+          </select>
+        </label>
         <label>Koersreactie op handel (%)
           <span>Per gekocht/verkocht aandeel. 0 = uit</span>
           <input type="number" data-regel="koersImpact" step="0.5" inputmode="decimal">

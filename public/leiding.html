@@ -240,7 +240,11 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       })[c]);
     }
-    const euro = (b) => "€ " + Math.round(Number(b)).toLocaleString("nl-NL");
+    const euro = (bedrag) => {
+      const b = Math.round(Number(bedrag) * 100) / 100;
+      return "€ " + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
+    };
+    const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });
     const tijd = (iso) => new Date(iso).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
     function mmss(ms) {
       const s = Math.max(0, Math.ceil(ms / 1000));
@@ -505,25 +509,26 @@
     function tekenVoorraad() {
       $("#voorraad").innerHTML = aandelen.map((a) => {
         const totaal = (state.supply && state.supply[a]) || 0;
-        const bezit = state.groups.reduce((som, g) => som + (g.shares[a] || 0), 0);
+        const bezit = Math.round(state.groups.reduce((som, g) => som + (g.shares[a] || 0), 0) * 10000) / 10000;
+        const minimaal = Math.max(1, Math.ceil(bezit - 1e-9)); // voorraad is altijd een heel getal
         if (!totaal) {
           return `<div class="vrij-rij">
             <span class="naam">${esc(a)}</span>
-            <span class="info"><b>onbeperkt</b><br>${bezit} in bezit</span>
+            <span class="info"><b>onbeperkt</b><br>${aantalTekst(bezit)} in bezit</span>
             <div class="vrij-knoppen" style="grid-template-columns:1fr">
-              <button type="button" data-voorraad="${esc(a)}" data-zet="${bezit + 10}">Begrenzen (nog 10 te koop)</button>
+              <button type="button" data-voorraad="${esc(a)}" data-zet="${Math.ceil(bezit - 1e-9) + 10}">Begrenzen (nog 10 te koop)</button>
             </div>
           </div>`;
         }
-        const vrij = totaal - bezit;
+        const vrij = Math.round((totaal - bezit) * 10000) / 10000;
         const knop = (d, klasse) => {
           const nieuw = totaal + d;
-          const kan = nieuw >= Math.max(1, bezit);
+          const kan = nieuw >= minimaal;
           return `<button type="button" class="${klasse}" data-voorraad="${esc(a)}" data-zet="${nieuw}" ${kan ? "" : "disabled"}>${d > 0 ? "+" : "−"}${Math.abs(d)}</button>`;
         };
         return `<div class="vrij-rij">
           <span class="naam">${esc(a)}</span>
-          <span class="info ${vrij <= 0 ? "op" : ""}"><b>${vrij <= 0 ? "uitverkocht" : `nog ${vrij}`}</b><br>${bezit} in bezit · totaal ${totaal}</span>
+          <span class="info ${vrij <= 0 ? "op" : ""}"><b>${vrij <= 0 ? "uitverkocht" : `nog ${aantalTekst(vrij)}`}</b><br>${aantalTekst(bezit)} in bezit · totaal ${totaal}</span>
           <div class="vrij-knoppen">
             ${knop(-5, "min")}${knop(-1, "min")}${knop(1, "plus")}${knop(5, "plus")}
             <button type="button" data-voorraad="${esc(a)}" data-zet="0">∞ onbeperkt</button>

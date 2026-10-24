@@ -83,9 +83,19 @@ function standaardRegels() {
     koersImpact: 1,       // % koersverandering per gekocht/verkocht aandeel
     renteProcent: 5,      // % rente op een lening
     renteInterval: 10,    // elke zoveel minuten
-    maxLening: 1000       // maximaal te lenen bedrag per groep (0 = lenen uit)
+    maxLening: 1000,      // maximaal te lenen bedrag per groep (0 = lenen uit)
+    kleinsteDeel: 0.1     // kleinste deel van een aandeel dat je kunt kopen (1 = alleen hele)
   };
 }
+
+const TOEGESTANE_DELEN = [1, 0.5, 0.25, 0.1, 0.01];
+
+// Aantallen aandelen op 4 decimalen en geld op centen afronden (voorkomt rekenfoutjes met kommagetallen)
+const rondAantal = (x) => Math.round(x * 10000) / 10000;
+const rondGeld = (x) => Math.round(x * 100) / 100;
+// Nederlandse weergave in meldingen: € 12,50 en 0,5
+const euroTekst = (x) => "€ " + Number(x).toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(rondGeld(x)) ? 0 : 2, maximumFractionDigits: 2 });
+const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });
 
 // Grenzen per spelregel: [minimum, maximum, omschrijving]
 const regelGrenzen = {
@@ -95,7 +105,8 @@ const regelGrenzen = {
   koersImpact: [0, 20, "De koersreactie op handel"],
   renteProcent: [0, 100, "De rente"],
   renteInterval: [1, 120, "De tijd tussen rentebetalingen"],
-  maxLening: [0, 1000000, "Het maximale leenbedrag"]
+  maxLening: [0, 1000000, "Het maximale leenbedrag"],
+  kleinsteDeel: [0.01, 1, "Het kleinste deel van een aandeel"]
 };
 
 const instellingenBestand = path.join(__dirname, "instellingen.json");
@@ -207,6 +218,9 @@ function controleerInstellingen(inst) {
     const w = Number(regels[sleutel]);
     if (!Number.isFinite(w) || w < laag || w > hoog) return `${naam} moet tussen ${laag} en ${hoog} liggen.`;
   }
+  if (!TOEGESTANE_DELEN.includes(Number(regels.kleinsteDeel))) {
+    return `Het kleinste deel van een aandeel moet ${TOEGESTANE_DELEN.join(", ")} zijn.`;
+  }
   return null;
 }
 
@@ -277,10 +291,11 @@ function gemiddeldePrijs(groep, aandeel) {
 // Aandelen weghalen bij een groep en de winst/het verlies daarop teruggeven
 function verkoopUitBezit(groep, aandeel, aantal, koers) {
   const gemiddeld = gemiddeldePrijs(groep, aandeel);
-  const resultaat = Math.round((koers - gemiddeld) * aantal);
-  groep.shares[aandeel] -= aantal;
-  groep.cost[aandeel] = groep.shares[aandeel] ? (groep.cost[aandeel] || 0) - gemiddeld * aantal : 0;
-  groep.realized = (groep.realized || 0) + resultaat;
+  const resultaat = rondGeld((koers - gemiddeld) * aantal);
+  groep.shares[aandeel] = rondAantal(groep.shares[aandeel] - aantal);
+  groep.cost[aandeel] = groep.shares[aandeel] > 0 ? (groep.cost[aandeel] || 0) - gemiddeld * aantal : 0;
+  if (groep.shares[aandeel] <= 0) groep.shares[aandeel] = 0;
+  groep.realized = rondGeld((groep.realized || 0) + resultaat);
   return resultaat;
 }
 
@@ -529,7 +544,7 @@ function rangLijst() {
 }
 
 function inBezit(aandeel) {
-  return state.groups.reduce((som, g) => som + (g.shares[aandeel] || 0), 0);
+  return rondAantal(state.groups.reduce((som, g) => som + (g.shares[aandeel] || 0), 0));
 }
 
 function boek(groep, actie, velden) {
@@ -548,11 +563,11 @@ function betaalDividend() {
   if (!procent) return false;
   let iemand = false;
   state.groups.forEach((g) => {
-    const bedrag = Math.round(state.posts.reduce(
+    const bedrag = rondGeld(state.posts.reduce(
       (som, a) => som + (g.shares[a] || 0) * state.prices[a] * procent / 100, 0));
     if (bedrag > 0) {
-      g.cash += bedrag;
-      g.dividend = (g.dividend || 0) + bedrag;
+      g.cash = rondGeld(g.cash + bedrag);
+      g.dividend = rondGeld((g.dividend || 0) + bedrag);
       boek(g, "dividend", { amount: bedrag, reason: `${procent}% dividend` });
       iemand = true;
     }
@@ -698,7 +713,7 @@ function json(res, status, data) {
 // Vermogensgrafiek: een punt zodra het totaal van een groep verandert
 function noteerVermogen() {
   if (!state.vermogen) state.vermogen = [];
-  const w = Object.fromEntries(state.groups.map((g) => [g.id, Math.round(totaleWaarde(g))]));
+  const w = Object.fromEntries(state.groups.map((g) => [g.id, rondGeld(totaleWaarde(g))]));
   state.groups.forEach((g) => {
     const st = g.stats || (g.stats = nieuweStats());
     if (w[g.id] > st.hoogsteWaarde) st.hoogsteWaarde = w[g.id];
@@ -844,7 +859,7 @@ function pasToeOpLopendSpel(body) {
     gesloten.forEach((naam) => {
       const aantal = groep.shares[naam] || 0;
       if (aantal) {
-        groep.cash += aantal * oudePrijzen[naam];
+        groep.cash = rondGeld(groep.cash + aantal * oudePrijzen[naam]);
         verkoopUitBezit(groep, naam, aantal, oudePrijzen[naam]);
       }
     });
@@ -1111,7 +1126,7 @@ const server = http.createServer(async (req, res) => {
       const nieuw = Math.round(Number(body.voorraad));
       if (!post || !state.posts.includes(aandeel)) return json(res, 400, { error: "Onbekende post." });
       const bezit = inBezit(aandeel);
-      const minimum = Math.max(1, bezit);
+      const minimum = Math.max(1, Math.ceil(bezit - 1e-9));
       if (!Number.isFinite(nieuw) || nieuw < 0 || nieuw > 100000 || (nieuw > 0 && nieuw < minimum)) {
         return json(res, 400, { error: `De voorraad van ${aandeel} kan niet lager dan ${minimum} (er zijn er ${bezit} in bezit).` });
       }
@@ -1125,10 +1140,10 @@ const server = http.createServer(async (req, res) => {
       // Meerdere klikken binnen een minuut over dezelfde post worden één bericht.
       const vorige = state.news[0];
       if (vorige && vorige.voorraadPost === aandeel && Date.now() - Date.parse(vorige.at) < 60000) state.news.shift();
-      const vrij = nieuw ? nieuw - bezit : null;
+      const vrij = nieuw ? rondAantal(nieuw - bezit) : null;
       if (!nieuw) voegNieuwsToe(`Onbeperkt aandelen ${aandeel}!`, `Er zijn vanaf nu genoeg aandelen ${aandeel} voor iedereen.`, [], "voorraad");
-      else if (!oud || nieuw > oud) voegNieuwsToe(`Extra aandelen ${aandeel} vrijgegeven`, `Er zijn nu nog ${vrij} aandelen ${aandeel} te koop.`, [], "voorraad");
-      else voegNieuwsToe(`Minder aandelen ${aandeel} beschikbaar`, vrij > 0 ? `Er zijn nog maar ${vrij} aandelen ${aandeel} te koop.` : `De aandelen ${aandeel} zijn uitverkocht!`, [], "voorraad");
+      else if (!oud || nieuw > oud) voegNieuwsToe(`Extra aandelen ${aandeel} vrijgegeven`, `Er zijn nu nog ${aantalTekst(vrij)} aandelen ${aandeel} te koop.`, [], "voorraad");
+      else voegNieuwsToe(`Minder aandelen ${aandeel} beschikbaar`, vrij > 0 ? `Er zijn nog maar ${aantalTekst(vrij)} aandelen ${aandeel} te koop.` : `De aandelen ${aandeel} zijn uitverkocht!`, [], "voorraad");
       state.news[0].voorraadPost = aandeel;
       stuurUpdate();
       return json(res, 200, { ok: true });
@@ -1455,12 +1470,18 @@ const server = http.createServer(async (req, res) => {
 
       const groep = state.groups.find((g) => g.id === Number(transactie.group));
       const aandeel = String(transactie.stock || "");
-      const aantal = Math.floor(Number(transactie.qty));
+      const aantal = rondAantal(Number(transactie.qty));
+      const deel = instellingen.regels.kleinsteDeel;
       const actie = String(transactie.action || "");
       const station = state.posts.includes(transactie.station) ? transactie.station : "";
 
-      if (!groep || !state.posts.includes(aandeel) || !(aantal >= 1)) {
+      if (!groep || !state.posts.includes(aandeel) || !(aantal > 0)) {
         return json(res, 400, { error: "Vul een geldige groep, aandeel en aantal in." });
+      }
+      // Alleen in stappen van het kleinste deel (bijv. 0,1 aandeel)
+      if (aantal < deel - 1e-9 || Math.abs(aantal / deel - Math.round(aantal / deel)) > 1e-6) {
+        const tekst = String(deel).replace(".", ",");
+        return json(res, 400, { error: deel === 1 ? "Je kunt alleen hele aandelen kopen en verkopen." : `Je kunt aandelen alleen in stappen van ${tekst} kopen en verkopen.` });
       }
 
       // Kopen kan alleen het aandeel van de post zelf; verkopen kan bij elke post
@@ -1473,7 +1494,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const koers = state.prices[aandeel];
-      const totaal = koers * aantal;
+      const totaal = rondGeld(koers * aantal);
       groep.cost = groep.cost || {};
       let resultaat = null;
       let gemiddeld = null;
@@ -1481,31 +1502,31 @@ const server = http.createServer(async (req, res) => {
       if (actie === "buy") {
         if (groep.cash < totaal) {
           return json(res, 400, {
-            error: `${groep.name} heeft onvoldoende kasgeld (nodig: € ${totaal}, aanwezig: € ${groep.cash}).`
+            error: `${groep.name} heeft onvoldoende kasgeld (nodig: ${euroTekst(totaal)}, aanwezig: ${euroTekst(groep.cash)}).`
           });
         }
         const voorraad = state.supply[aandeel] || 0;
         if (voorraad) {
-          const beschikbaar = voorraad - inBezit(aandeel);
-          if (aantal > beschikbaar) {
+          const beschikbaar = rondAantal(voorraad - inBezit(aandeel));
+          if (aantal > beschikbaar + 1e-9) {
             return json(res, 400, {
               error: beschikbaar > 0
-                ? `Er zijn nog maar ${beschikbaar} aandelen ${aandeel} te koop.`
+                ? `Er zijn nog maar ${aantalTekst(beschikbaar)} aandelen ${aandeel} te koop.`
                 : `De aandelen ${aandeel} zijn uitverkocht! Wacht tot iemand verkoopt.`
             });
           }
         }
-        groep.cash -= totaal;
-        groep.shares[aandeel] += aantal;
+        groep.cash = rondGeld(groep.cash - totaal);
+        groep.shares[aandeel] = rondAantal((groep.shares[aandeel] || 0) + aantal);
         groep.cost[aandeel] = (groep.cost[aandeel] || 0) + totaal;
       } else if (actie === "sell") {
-        if (groep.shares[aandeel] < aantal) {
+        if ((groep.shares[aandeel] || 0) < aantal - 1e-9) {
           return json(res, 400, {
-            error: `${groep.name} heeft maar ${groep.shares[aandeel]} aandelen ${aandeel}.`
+            error: `${groep.name} heeft maar ${aantalTekst(groep.shares[aandeel] || 0)} aandelen ${aandeel}.`
           });
         }
-        gemiddeld = Math.round(gemiddeldePrijs(groep, aandeel));
-        groep.cash += totaal;
+        gemiddeld = rondGeld(gemiddeldePrijs(groep, aandeel));
+        groep.cash = rondGeld(groep.cash + totaal);
         resultaat = verkoopUitBezit(groep, aandeel, aantal, koers);
       } else {
         return json(res, 400, { error: "Kies kopen of verkopen." });
@@ -1535,7 +1556,7 @@ const server = http.createServer(async (req, res) => {
       const impact = instellingen.regels.koersImpact;
       if (impact) {
         let verschil = Math.round((koers * impact * aantal) / 100);
-        if (verschil === 0) verschil = 1;
+        if (verschil === 0 && aantal >= 1) verschil = 1; // kleine delen bewegen de koers niet
         state.prices[aandeel] = begrens(koers + (actie === "buy" ? verschil : -verschil));
         noteerKoersen();
       }

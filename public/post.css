@@ -199,3 +199,10 @@ button:disabled { opacity: .45; cursor: not-allowed; outline: none; }
 
 select:disabled { opacity: .75; cursor: not-allowed; }
 .uitleg-klein { color: var(--muted); font-weight: 400; font-size: 13px; }
+
+/* Aantal: −1  −deel  [ invoer ]  +deel  +1 */
+.aantal { grid-template-columns: 44px 52px 1fr 52px 44px; }
+.aantal.heel { grid-template-columns: 52px 1fr 52px; }
+.aantal .klein { font-size: 16px; padding: 8px 2px; }
+.keuze.hoeveel .keuzeknop { font-size: 14px; }
+#maxKnop { border-style: dashed; }

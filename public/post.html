@@ -54,13 +54,27 @@
             <small class="uitleg-klein" id="aandeelUitleg"></small>
           </label>
 
-          <label>
+          <div class="keuze drie hoeveel">
+            <button type="button" class="keuzeknop actief" data-invoer="aantal">Per aantal</button>
+            <button type="button" class="keuzeknop" data-invoer="bedrag">Per bedrag (€)</button>
+            <button type="button" class="keuzeknop" id="maxKnop">Max</button>
+          </div>
+
+          <label id="aantalVeld">
             Aantal aandelen
-            <div class="aantal">
-              <button type="button" class="klein" data-stap="-1">−</button>
-              <input id="aantal" type="number" min="1" value="1" inputmode="numeric">
-              <button type="button" class="klein" data-stap="1">+</button>
+            <div class="aantal" id="aantalKnoppen">
+              <button type="button" class="klein" data-stap="-1">−1</button>
+              <button type="button" class="klein deel" data-stap="-deel">−0,1</button>
+              <input id="aantal" type="number" min="0.1" step="0.1" value="1" inputmode="decimal">
+              <button type="button" class="klein deel" data-stap="deel">+0,1</button>
+              <button type="button" class="klein" data-stap="1">+1</button>
             </div>
+          </label>
+
+          <label id="bedragVeld" hidden>
+            Bedrag (€)
+            <input id="bedrag" type="number" min="1" step="1" value="50" inputmode="decimal">
+            <small class="uitleg-klein" id="bedragUitleg"></small>
           </label>
 
           <p class="samenvatting" id="samenvatting"></p>

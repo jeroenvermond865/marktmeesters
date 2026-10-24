@@ -22,14 +22,70 @@
   let gekozenActie = "buy";
   let modus = "handel";
   let bonusSoort = "plus";
+  let invoer = "aantal"; // "aantal" of "bedrag"
+
+  function kleinsteDeel() {
+    return (state && state.rules && state.rules.kleinsteDeel) || 1;
+  }
+
+  // Afronden op het kleinste deel (naar beneden, zodat je nooit meer koopt dan je wilt)
+  function opDeel(x) {
+    const d = kleinsteDeel();
+    return rondAantal(Math.floor(x / d + 1e-9) * d);
+  }
+
+  // Het aantal aandelen dat nu ingevoerd is (bij "per bedrag" omgerekend)
+  function huidigAantal() {
+    if (!state || !post) return 0;
+    if (invoer === "bedrag") {
+      const prijs = state.prices[aandeelSelect.value];
+      return prijs ? opDeel((Number($("#bedrag").value) || 0) / prijs) : 0;
+    }
+    return rondAantal(Number(aantalInput.value) || 0);
+  }
+
+  // Knoppen en stappen aanpassen aan het kleinste deel (1, 0,5, 0,25, 0,1 of 0,01)
+  function zetDeelKnoppen() {
+    const d = kleinsteDeel();
+    const heel = d >= 1;
+    document.querySelectorAll(".klein.deel").forEach((k) => {
+      k.hidden = heel;
+      k.textContent = (k.dataset.stap === "deel" ? "+" : "−") + aantalTekst(d);
+    });
+    $("#aantalKnoppen").classList.toggle("heel", heel);
+    aantalInput.step = d;
+    aantalInput.min = d;
+    aantalInput.inputMode = heel ? "numeric" : "decimal";
+  }
+
+  document.querySelectorAll("[data-invoer]").forEach((knop) => {
+    knop.addEventListener("click", () => {
+      // Het huidige aantal meenemen naar de andere invoer
+      const aantal = huidigAantal();
+      invoer = knop.dataset.invoer;
+      zetActief("[data-invoer]", knop);
+      $("#aantalVeld").hidden = invoer !== "aantal";
+      $("#bedragVeld").hidden = invoer !== "bedrag";
+      const prijs = state && state.prices[aandeelSelect.value];
+      if (invoer === "aantal" && aantal > 0) aantalInput.value = aantal;
+      if (invoer === "bedrag" && prijs && aantal > 0) $("#bedrag").value = Math.round(aantal * prijs * 100) / 100;
+      werkAllesBij();
+    });
+  });
 
   function naarLogin() {
     location.href = "/login.html?terug=" + encodeURIComponent(location.pathname + location.search);
   }
 
+  // € 12 of € 12,50 (centen alleen als het nodig is)
   function euro(bedrag) {
-    return "€ " + Math.round(Number(bedrag)).toLocaleString("nl-NL");
+    const b = Math.round(Number(bedrag) * 100) / 100;
+    return "€ " + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
   }
+
+  // 3 of 0,5 aandelen
+  const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });
+  const rondAantal = (x) => Math.round(x * 10000) / 10000;
 
   function esc(tekst) {
     return String(tekst).replace(/[&<>"']/g, (c) => ({
@@ -45,7 +101,7 @@
 
   // Bedrag met + of − en een kleur: groen voor winst, rood voor verlies
   function resultaatHtml(bedrag) {
-    const r = Math.round(bedrag);
+    const r = Math.round(Number(bedrag) * 100) / 100;
     if (r > 0) return `<span class="winst">+${euro(r)}</span>`;
     if (r < 0) return `<span class="verlies">−${euro(-r)}</span>`;
     return `<span class="neutraal">€ 0</span>`;
@@ -69,7 +125,7 @@
   function vrijeVoorraad(a) {
     const totaal = (state.supply && state.supply[a]) || 0;
     if (!totaal) return Infinity;
-    return totaal - state.groups.reduce((som, g) => som + (g.shares[a] || 0), 0);
+    return rondAantal(totaal - state.groups.reduce((som, g) => som + (g.shares[a] || 0), 0));
   }
 
   function gekozen() {
@@ -156,9 +212,29 @@
 
   document.querySelectorAll("[data-stap]").forEach((knop) => {
     knop.addEventListener("click", () => {
-      aantalInput.value = Math.max(1, (Number(aantalInput.value) || 0) + Number(knop.dataset.stap));
+      const d = kleinsteDeel();
+      const stap = knop.dataset.stap === "deel" ? d : knop.dataset.stap === "-deel" ? -d : Number(knop.dataset.stap);
+      aantalInput.value = rondAantal(Math.max(d, (Number(aantalInput.value) || 0) + stap));
       werkAllesBij();
     });
+  });
+
+  // Max: zoveel als de groep kan kopen (geld en voorraad) of alles wat ze heeft (verkopen)
+  $("#maxKnop").addEventListener("click", () => {
+    const groep = gekozen();
+    if (!groep || !state) return;
+    const a = aandeelSelect.value;
+    let max;
+    if (gekozenActie === "buy") {
+      max = opDeel(groep.cash / state.prices[a]);
+      const vrij = vrijeVoorraad(a);
+      if (vrij !== Infinity) max = Math.min(max, opDeel(vrij));
+    } else {
+      max = rondAantal(groep.shares[a] || 0);
+    }
+    if (invoer === "bedrag") $("#bedrag").value = Math.round(max * state.prices[a] * 100) / 100;
+    else aantalInput.value = max;
+    werkAllesBij();
   });
 
   $("#bonusSnel").addEventListener("click", (e) => {
@@ -168,7 +244,7 @@
     werkAllesBij();
   });
 
-  [aandeelSelect, aantalInput, $("#bonusBedrag"), $("#bonusReden")].forEach((el) => {
+  [aandeelSelect, aantalInput, $("#bedrag"), $("#bonusBedrag"), $("#bonusReden")].forEach((el) => {
     el.addEventListener("input", werkAllesBij);
   });
 
@@ -187,22 +263,30 @@
 
   function werkHandelBij() {
     const aandeel = aandeelSelect.value;
-    const aantal = Math.floor(Number(aantalInput.value)) || 0;
+    const aantal = huidigAantal();
     const prijs = state.prices[aandeel];
-    const totaal = prijs * aantal;
+    const totaal = Math.round(prijs * aantal * 100) / 100;
     const groep = gekozen();
+    const d = kleinsteDeel();
+
+    if (invoer === "bedrag") {
+      $("#bedragUitleg").textContent = aantal > 0
+        ? `= ${aantalTekst(aantal)} aandeel ${aandeel} (${euro(totaal)})`
+        : `Te weinig voor ${aantalTekst(d)} aandeel (${euro(prijs * d)}).`;
+    }
+    const geldig = aantal >= d - 1e-9 && Math.abs(aantal / d - Math.round(aantal / d)) < 1e-6;
 
     let extra = "";
     if (gekozenActie === "buy" && groep) {
       const vrij = vrijeVoorraad(aandeel);
-      if (vrij !== Infinity && aantal > vrij) {
-        extra = ` <span class="fout">— ${vrij > 0 ? `er zijn er nog maar ${vrij} te koop` : "uitverkocht!"}</span>`;
+      if (vrij !== Infinity && aantal > vrij + 1e-9) {
+        extra = ` <span class="fout">— ${vrij > 0 ? `er zijn er nog maar ${aantalTekst(vrij)} te koop` : "uitverkocht!"}</span>`;
       } else if (totaal > groep.cash) {
         extra = ` <span class="fout">— te weinig kasgeld (${euro(groep.cash)})</span>`;
       }
     }
-    if (gekozenActie === "sell" && groep && aantal > groep.shares[aandeel]) {
-      extra = ` <span class="fout">— groep heeft er maar ${groep.shares[aandeel]}</span>`;
+    if (gekozenActie === "sell" && groep && aantal > (groep.shares[aandeel] || 0) + 1e-9) {
+      extra = ` <span class="fout">— groep heeft er maar ${aantalTekst(groep.shares[aandeel] || 0)}</span>`;
     } else if (gekozenActie === "sell" && groep && aantal > 0) {
       const gem = gemiddeld(groep, aandeel);
       const r = (prijs - gem) * aantal;
@@ -211,12 +295,15 @@
 
     const impact = state.rules && state.rules.koersImpact;
     const reactie = impact && aantal
-      ? `<br><small>Na deze ${gekozenActie === "buy" ? "aankoop stijgt" : "verkoop daalt"} de koers ongeveer ${Math.round(impact * aantal * 10) / 10}%.</small>`
+      ? `<br><small>Na deze ${gekozenActie === "buy" ? "aankoop stijgt" : "verkoop daalt"} de koers ongeveer ${(Math.round(impact * aantal * 10) / 10).toLocaleString("nl-NL")}%.</small>`
       : "";
+    if (!geldig && aantal > 0) {
+      extra = ` <span class="fout">— alleen in stappen van ${aantalTekst(d)}</span>`;
+    }
 
     const werkwoord = gekozenActie === "buy" ? "koopt" : "verkoopt";
     samenvatting.innerHTML = groep
-      ? `${esc(groep.name)} ${werkwoord} <b>${aantal}× ${esc(aandeel)}</b> à ${euro(prijs)} = <b>${euro(totaal)}</b>${extra}${reactie}`
+      ? `${esc(groep.name)} ${werkwoord} <b>${aantalTekst(aantal)}× ${esc(aandeel)}</b> à ${euro(prijs)} = <b>${euro(totaal)}</b>${extra}${reactie}`
       : "";
 
     verwerkKnop.textContent = gekozenActie === "buy" ? `Koop voor ${euro(totaal)}` : `Verkoop voor ${euro(totaal)}`;
@@ -278,7 +365,7 @@
     const vrij = vrijeVoorraad(post);
     $("#voorraad").innerHTML = vrij === Infinity ? "" : vrij <= 0
       ? `<span class="fout">Uitverkocht</span>`
-      : `Nog ${vrij} van ${state.supply[post]} te koop`;
+      : `Nog ${aantalTekst(vrij)} van ${state.supply[post]} te koop`;
 
     groepen.innerHTML = state.groups.map((groep) => {
       const waarde = aandelen.reduce((som, a) => som + (groep.shares[a] || 0) * state.prices[a], 0);
@@ -291,7 +378,7 @@
           : "";
         return `
         <span class="${a === post ? "hier" : ""} ${aantal ? "" : "leeg"}">
-          ${esc(a)}: <b>${aantal}</b> ${detail}
+          ${esc(a)}: <b>${aantalTekst(aantal)}</b> ${detail}
         </span>`;
       }).join("");
 
@@ -338,6 +425,7 @@
     if (!state.groups.some((g) => g.id === gekozenGroep) && state.groups.length) {
       gekozenGroep = state.groups[0].id;
     }
+    zetDeelKnoppen();
     tekenGroepKnoppen();
     tekenGroepen();
     tekenNieuws();
@@ -384,10 +472,11 @@
   }
 
   verwerkKnop.addEventListener("click", () => {
-    verstuur("/api/trade", { action: gekozenActie, stock: aandeelSelect.value, qty: aantalInput.value }, verwerkKnop, (inhoud) => {
+    verstuur("/api/trade", { action: gekozenActie, stock: aandeelSelect.value, qty: huidigAantal() }, verwerkKnop, (inhoud) => {
       aantalInput.value = 1;
       if (inhoud.result === null || inhoud.result === undefined) return "✓ Gekocht voor " + euro(inhoud.total) + ".";
-      return inhoud.result >= 0
+      if (inhoud.result === 0) return "✓ Verkocht voor " + euro(inhoud.total) + " — geen winst of verlies.";
+      return inhoud.result > 0
         ? "✓ Verkocht voor " + euro(inhoud.total) + " — " + euro(inhoud.result) + " winst!"
         : "✓ Verkocht voor " + euro(inhoud.total) + " — " + euro(-inhoud.result) + " verlies.";
     });
