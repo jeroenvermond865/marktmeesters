@@ -112,7 +112,7 @@ Het eindscherm verschijnt vanzelf als de beurs sluit; je kunt het ook vanaf de b
 
 Een post heeft twee tabbladen:
 
-- **Handel**: kopen en verkopen. Met **voorraad** zijn er maar zoveel aandelen per post (op = op).
+- **Handel**: kopen en verkopen. Kopen kan alleen het aandeel van die post; verkopen kan van elk aandeel. Met **voorraad** zijn er maar zoveel aandelen per post (op = op).
   Met **koersreactie** wordt een aandeel duurder als er veel gekocht wordt, en goedkoper bij verkopen.
 - **Beloning / boete**: geef een groep geld voor een opdracht, of een boete (nooit onder € 0).
 

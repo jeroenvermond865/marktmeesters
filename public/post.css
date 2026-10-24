@@ -196,3 +196,6 @@ button.verkoop { background: var(--orange); }
 .keuze.twee .keuzeknop.actief[data-bonus="min"],
 .keuze.twee .keuzeknop.actief[data-bank="aflossen"] { background: var(--orange); border-color: var(--orange); }
 button:disabled { opacity: .45; cursor: not-allowed; outline: none; }
+
+select:disabled { opacity: .75; cursor: not-allowed; }
+.uitleg-klein { color: var(--muted); font-weight: 400; font-size: 13px; }

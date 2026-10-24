@@ -101,6 +101,7 @@
     aandeelSelect.innerHTML = "";
     aandelen.forEach((a) => aandeelSelect.add(new Option(a, a)));
     aandeelSelect.value = vorigePost !== post || !aandelen.includes(huidig) ? post : huidig;
+    zetAandeelKeuze();
   }
 
   // --- Keuzeknoppen ---
@@ -140,6 +141,7 @@
     knop.addEventListener("click", () => {
       gekozenActie = knop.dataset.actie;
       zetActief("[data-actie]", knop);
+      zetAandeelKeuze();
       werkAllesBij();
     });
   });
@@ -171,6 +173,17 @@
   });
 
   // --- Samenvattingen ---
+
+  // Kopen: alleen het aandeel van deze post. Verkopen: elk aandeel.
+  function zetAandeelKeuze() {
+    if (!post) return;
+    const kopen = gekozenActie === "buy";
+    if (kopen) aandeelSelect.value = post;
+    aandeelSelect.disabled = kopen;
+    $("#aandeelUitleg").textContent = kopen
+      ? `Bij deze post kun je alleen ${post} kopen.`
+      : "Verkopen kan van elk aandeel dat de groep heeft.";
+  }
 
   function werkHandelBij() {
     const aandeel = aandeelSelect.value;

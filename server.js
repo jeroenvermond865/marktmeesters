@@ -1463,6 +1463,15 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: "Vul een geldige groep, aandeel en aantal in." });
       }
 
+      // Kopen kan alleen het aandeel van de post zelf; verkopen kan bij elke post
+      if (actie === "buy" && aandeel !== station) {
+        return json(res, 400, {
+          error: station
+            ? `Bij post ${station} kun je alleen aandelen ${station} kopen. Voor ${aandeel} moet je naar post ${aandeel}.`
+            : "Kopen kan alleen bij een post."
+        });
+      }
+
       const koers = state.prices[aandeel];
       const totaal = koers * aantal;
       groep.cost = groep.cost || {};
