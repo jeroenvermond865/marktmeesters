@@ -193,6 +193,14 @@
           <span>Hoe vaak het dividend wordt uitbetaald</span>
           <input type="number" data-regel="dividendInterval" step="1" inputmode="numeric">
         </label>
+        <label>Heftigheid van nieuws (%)
+          <span>100 = zoals in de berichten staat, 150 = anderhalf keer zo heftig</span>
+          <input type="number" data-regel="nieuwsKracht" step="10" min="25" max="400" inputmode="numeric">
+        </label>
+        <label>Terugtrekkracht (0–100)
+          <span>Hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat. 0 = puur toeval</span>
+          <input type="number" data-regel="terugTrek" step="5" min="0" max="100" inputmode="numeric">
+        </label>
         <label>Kleinste deel van een aandeel
           <span>Hoe klein een stukje aandeel mag zijn</span>
           <select data-regel="kleinsteDeel">

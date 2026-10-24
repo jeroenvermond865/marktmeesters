@@ -84,7 +84,9 @@ function standaardRegels() {
     renteProcent: 5,      // % rente op een lening
     renteInterval: 10,    // elke zoveel minuten
     maxLening: 1000,      // maximaal te lenen bedrag per groep (0 = lenen uit)
-    kleinsteDeel: 0.1     // kleinste deel van een aandeel dat je kunt kopen (1 = alleen hele)
+    kleinsteDeel: 0.1,    // kleinste deel van een aandeel dat je kunt kopen (1 = alleen hele)
+    nieuwsKracht: 150,    // % — hoe heftig willekeurig nieuws is (100 = zoals in de berichten staat)
+    terugTrek: 40         // 0–100 — hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat
   };
 }
 
@@ -106,7 +108,9 @@ const regelGrenzen = {
   renteProcent: [0, 100, "De rente"],
   renteInterval: [1, 120, "De tijd tussen rentebetalingen"],
   maxLening: [0, 1000000, "Het maximale leenbedrag"],
-  kleinsteDeel: [0.01, 1, "Het kleinste deel van een aandeel"]
+  kleinsteDeel: [0.01, 1, "Het kleinste deel van een aandeel"],
+  nieuwsKracht: [25, 400, "De heftigheid van nieuws"],
+  terugTrek: [0, 100, "De terugtrekkracht"]
 };
 
 const instellingenBestand = path.join(__dirname, "instellingen.json");
@@ -349,30 +353,63 @@ const standaardNieuws = [
   { titel: "Verloren sleutelbos bij {post}", tekst: "Niemand kan erin; de boel ligt even stil bij {post}.", effecten: [e("*", -14, -6)] }
 ];
 
+// Hoe ver een aandeel van zijn beginwaarde af staat (0 = op beginwaarde, + = hoger, − = lager).
+// Gemeten in "stappen van ×2": +1 = twee keer zo duur als de beginwaarde, −1 = half zo duur.
+function afwijking(aandeel) {
+  const p = instellingen.posten.find((x) => x.naam === aandeel);
+  const begin = p ? p.beginKoers : state.prices[aandeel];
+  return Math.log2(state.prices[aandeel] / begin);
+}
+
+// Kiest willekeurig nieuws, maar met een duwtje terug naar het midden:
+// staat een aandeel ver boven zijn beginwaarde, dan is slecht nieuws voor dat aandeel waarschijnlijker
+// (en andersom). Zo blijft een aandeel niet eindeloos boven- of onderin hangen.
 function kiesNieuws() {
   const posten = postNamen();
   const vind = (naam) => posten.find((p) => p.toLowerCase() === String(naam).toLowerCase());
-  const willekeurig = posten[Math.floor(Math.random() * posten.length)];
+  const k = (instellingen.regels.terugTrek / 100) * 3; // 0 = puur toeval
+  const gewicht = (score) => Math.exp(k * score);
+
+  // Kies uit een lijst met gewichten
+  const trek = (lijst) => {
+    const totaal = lijst.reduce((s, x) => s + x.w, 0);
+    let r = Math.random() * totaal;
+    for (const x of lijst) { r -= x.w; if (r <= 0) return x; }
+    return lijst[lijst.length - 1];
+  };
 
   const bruikbaar = instellingen.nieuws
     .map((item) => {
+      // Is dit bericht vooral goed of slecht nieuws?
+      const midden = item.effecten.reduce((s, ef) => s + (ef.min + ef.max) / 2, 0);
+      const richting = Math.sign(midden) || 1;
+
+      // Een bericht over "een willekeurige post": goed nieuws gaat liever naar een laag aandeel, slecht naar een hoog
+      const willekeurig = trek(posten.map((p) => ({ p, w: gewicht(-richting * afwijking(p)) }))).p;
+
       const effect = {};
       let gebruiktWillekeurig = false;
+      let score = 0;
       for (const ef of item.effecten) {
         const echt = ef.post === "*" ? willekeurig : vind(ef.post);
         if (ef.post === "*") gebruiktWillekeurig = true;
-        if (echt) effect[echt] = [ef.min, ef.max];
+        if (!echt) continue;
+        effect[echt] = [ef.min, ef.max];
+        // Positief als het bericht het aandeel richting zijn beginwaarde duwt
+        score += -Math.sign((ef.min + ef.max) / 2) * afwijking(echt);
       }
-      if (!Object.keys(effect).length) return null;
+      const n = Object.keys(effect).length;
+      if (!n) return null;
       const vul = (t) => (gebruiktWillekeurig ? t.replaceAll("{post}", willekeurig) : t);
-      return { titel: vul(item.titel), tekst: vul(item.tekst), effect };
+      return { titel: vul(item.titel), tekst: vul(item.tekst), effect, w: gewicht(score / n) };
     })
     .filter(Boolean);
 
   if (!bruikbaar.length) {
-    return { titel: `Nieuws over ${willekeurig}`, tekst: "", effect: { [willekeurig]: [-15, 20] } };
+    const p = posten[Math.floor(Math.random() * posten.length)];
+    return { titel: `Nieuws over ${p}`, tekst: "", effect: { [p]: [-15, 20] } };
   }
-  return bruikbaar[Math.floor(Math.random() * bruikbaar.length)];
+  return trek(bruikbaar);
 }
 
 // Live-verbindingen. Elke verbinding krijgt zijn eigen weergave van het spel:
@@ -601,8 +638,8 @@ function willekeurigNieuws() {
   state.previous = { ...state.prices };
   const changes = Object.entries(item.effect).map(([aandeel, [van, tot]]) => {
     const oud = state.prices[aandeel];
-    // Procentuele verandering, minstens € 1 omhoog of omlaag
-    const procent = randomGetal(van, tot);
+    // Procentuele verandering (maal de heftigheid uit de spelinstellingen), minstens € 1 omhoog of omlaag
+    const procent = Math.round(randomGetal(van, tot) * instellingen.regels.nieuwsKracht / 100);
     let verschil = Math.round((oud * procent) / 100);
     if (verschil === 0) verschil = procent > 0 ? 1 : -1;
     state.prices[aandeel] = begrens(oud + verschil);

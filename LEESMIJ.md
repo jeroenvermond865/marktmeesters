@@ -75,7 +75,7 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
 - **Koersgrenzen**: minimale en maximale koers.
 - **Startgeld** per groep.
 - **Kleuren**: kies een kleurthema voor alle schermen (standaard roze).
-- **Spelregels**: speelduur, dividend, koersreactie, maximaal lenen en rente.
+- **Spelregels**: heftigheid van nieuws, terugtrekkracht (aandelen blijven niet hangen), speelduur, dividend, koersreactie, maximaal lenen en rente.
 - **Nieuwsberichten**: aanpassen, verwijderen, zelf schrijven of laten verzinnen met 🎲 *Verzin een bericht*.
 
 Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naam`). Kies de post dan opnieuw via de startpagina.
