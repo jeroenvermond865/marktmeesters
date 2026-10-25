@@ -262,10 +262,23 @@
       : "Verkopen kan van elk aandeel dat de groep heeft.";
   }
 
+  // Koers na kopen of verkopen (zelfde berekening als op de server)
+  function koersNaHandel(koers, aantal, actie) {
+    const impact = state.rules && state.rules.koersImpact;
+    if (!impact) return koers;
+    let verschil = Math.round((koers * impact * aantal) / 100);
+    if (verschil === 0 && aantal >= 1) verschil = 1;
+    const l = state.limits || { min: 1, max: Infinity };
+    return Math.max(l.min, Math.min(l.max, Math.round(koers + (actie === "buy" ? verschil : -verschil))));
+  }
+
   function werkHandelBij() {
     const aandeel = aandeelSelect.value;
     const aantal = huidigAantal();
-    const prijs = state.prices[aandeel];
+    const nu = state.prices[aandeel];
+    const daarna = koersNaHandel(nu, aantal, gekozenActie);
+    // Verkopen gaat tegen de koers ná de daling
+    const prijs = gekozenActie === "sell" ? daarna : nu;
     const totaal = Math.round(prijs * aantal * 100) / 100;
     const groep = gekozen();
     const d = kleinsteDeel();
@@ -294,9 +307,8 @@
       extra = `<br>Gekocht voor gemiddeld ${euro(gem)} → ${r >= 0 ? "winst" : "verlies"} op deze verkoop: <b>${resultaatHtml(r)}</b>`;
     }
 
-    const impact = state.rules && state.rules.koersImpact;
-    const reactie = impact && aantal
-      ? `<br><small>Na deze ${gekozenActie === "buy" ? "aankoop stijgt" : "verkoop daalt"} de koers ongeveer ${(Math.round(impact * aantal * 10) / 10).toLocaleString("nl-NL")}%.</small>`
+    const reactie = aantal && daarna !== nu
+      ? `<br><small>Hierdoor ${gekozenActie === "buy" ? "stijgt" : "daalt"} de koers van ${esc(aandeel)} van ${euro(nu)} naar <b>${euro(daarna)}</b>.</small>`
       : "";
     if (!geldig && aantal > 0) {
       extra = ` <span class="fout">— alleen in stappen van ${aantalTekst(d)}</span>`;

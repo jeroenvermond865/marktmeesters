@@ -196,7 +196,8 @@
       <h2>Functies</h2>
       <p class="opmerking">Zet onderdelen van het spel aan of uit. De standaard is afgestemd op kinderen van 11 tot 14 jaar: de lastigste onderdelen staan dan uit. Wat uit staat, verdwijnt van alle schermen.</p>
       <div class="functies">
-        <label><input type="checkbox" data-functie="lenen"><div>Lenen bij de bank<span>Groepen kunnen geld lenen bij de bank en betalen daar rente over.</span></div></label>
+        <label><input type="checkbox" data-functie="lenen"><div>Lenen bij de bank<span>Groepen kunnen via de bediening geld lenen bij de bank. De lening telt aan het eind als min.</span></div></label>
+        <label><input type="checkbox" data-functie="rente"><div>Rente op een lening<span>De lening wordt elke paar minuten hoger. Werkt alleen als lenen aan staat.</span></div></label>
         <label><input type="checkbox" data-functie="delen"><div>Stukjes van een aandeel<span>Ook een deel van een aandeel kopen, en kopen "per bedrag". Uit = alleen hele aandelen.</span></div></label>
         <label><input type="checkbox" data-functie="centen"><div>Bedragen met centen<span>Uit = alle bedragen in hele euro's (dividend wordt afgerond).</span></div></label>
         <label><input type="checkbox" data-functie="dividend"><div>Dividend<span>Geld voor groepen die aandelen vasthouden.</span></div></label>
@@ -243,18 +244,18 @@
           </select>
         </label>
         <label>Koersreactie op handel (%)
-          <span>Per gekocht/verkocht aandeel. 0 = uit</span>
+          <span>Per gekocht/verkocht aandeel. Standaard 5: 3 aandelen kopen = 15% duurder. 0 = uit</span>
           <input type="number" data-regel="koersImpact" step="0.5" inputmode="decimal">
         </label>
         <label data-hoort-bij="lenen">Maximaal lenen (€)
           <span>Per groep bij de bank. 0 = lenen uit</span>
           <input type="number" data-regel="maxLening" step="1" inputmode="numeric">
         </label>
-        <label data-hoort-bij="lenen">Rente (%)
+        <label data-hoort-bij="rente">Rente (%)
           <span>Op de openstaande lening. 0 = geen rente</span>
           <input type="number" data-regel="renteProcent" step="0.5" inputmode="decimal">
         </label>
-        <label data-hoort-bij="lenen">Rente elke (minuten)
+        <label data-hoort-bij="rente">Rente elke (minuten)
           <span>Hoe vaak de rente wordt bijgeteld</span>
           <input type="number" data-regel="renteInterval" step="1" inputmode="numeric">
         </label>

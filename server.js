@@ -83,7 +83,7 @@ function standaardRegels() {
     speelduur: 60,        // minuten, voorstel bij het starten van de speeltijd
     dividendProcent: 2,   // % van de koers dat per aandeel wordt uitbetaald
     dividendInterval: 10, // elke zoveel minuten
-    koersImpact: 1,       // % koersverandering per gekocht/verkocht aandeel
+    koersImpact: 5,       // % koersverandering per gekocht/verkocht aandeel
     renteProcent: 5,      // % rente op een lening
     renteInterval: 10,    // elke zoveel minuten
     maxLening: 100,       // maximaal te lenen bedrag per groep (0 = lenen uit)
@@ -94,9 +94,10 @@ function standaardRegels() {
 }
 
 // Functies die je aan en uit kunt zetten. De standaard is afgestemd op kinderen van 11 tot 14:
-// de lastigste onderdelen (lenen, stukjes van aandelen, centen) staan uit.
+// de lastigste onderdelen (rente, dividend, stukjes van aandelen, centen) staan uit.
 const functieNamen = {
-  lenen: "Lenen bij de bank (met rente)",
+  lenen: "Lenen bij de bank",
+  rente: "Rente op een lening",
   delen: "Stukjes van een aandeel en kopen per bedrag",
   centen: "Bedragen met centen",
   dividend: "Dividend",
@@ -109,10 +110,11 @@ const functieNamen = {
 
 function standaardFuncties() {
   return {
-    lenen: false,
+    lenen: true,
+    rente: false,
     delen: false,
     centen: false,
-    dividend: true,
+    dividend: false,
     tips: true,
     krachHausse: true,
     beloningen: true,
@@ -125,7 +127,8 @@ function standaardFuncties() {
 function geldendeRegels() {
   const r = { ...instellingen.regels };
   const f = instellingen.functies;
-  if (!f.lenen) { r.maxLening = 0; r.renteProcent = 0; }
+  if (!f.lenen) r.maxLening = 0;
+  if (!f.lenen || !f.rente) r.renteProcent = 0;
   if (!f.delen) r.kleinsteDeel = 1;
   if (!f.dividend) r.dividendProcent = 0;
   return r;
@@ -831,6 +834,15 @@ setInterval(() => {
 
 function randomGetal(van, tot) {
   return van + Math.floor(Math.random() * (tot - van + 1));
+}
+
+// Koers na kopen of verkopen: per aandeel het ingestelde percentage omhoog (kopen) of omlaag (verkopen)
+function koersNaHandel(koers, aantal, actie) {
+  const impact = instellingen.regels.koersImpact;
+  if (!impact) return koers;
+  let verschil = Math.round((koers * impact * aantal) / 100);
+  if (verschil === 0 && aantal >= 1) verschil = 1; // kleine delen bewegen de koers niet
+  return begrens(koers + (actie === "buy" ? verschil : -verschil));
 }
 
 function begrens(koers) {
@@ -1642,7 +1654,11 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
-      const koers = state.prices[aandeel];
+      // Kopen gaat tegen de huidige koers (daarna stijgt hij);
+      // verkopen tegen de koers ná de daling. Zo levert snel kopen en weer verkopen niets op.
+      const oudeKoers = state.prices[aandeel];
+      const nieuweKoers = koersNaHandel(oudeKoers, aantal, actie);
+      const koers = actie === "sell" ? nieuweKoers : oudeKoers;
       const totaal = rondBedrag(koers * aantal);
       groep.cost = groep.cost || {};
       let resultaat = null;
@@ -1702,11 +1718,9 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Koers reageert op handel: kopen maakt duurder, verkopen goedkoper
-      const impact = instellingen.regels.koersImpact;
-      if (impact) {
-        let verschil = Math.round((koers * impact * aantal) / 100);
-        if (verschil === 0 && aantal >= 1) verschil = 1; // kleine delen bewegen de koers niet
-        state.prices[aandeel] = begrens(koers + (actie === "buy" ? verschil : -verschil));
+      if (nieuweKoers !== oudeKoers) {
+        state.previous[aandeel] = oudeKoers; // pijltje omhoog/omlaag op het grote scherm
+        state.prices[aandeel] = nieuweKoers;
         noteerKoersen();
       }
 
