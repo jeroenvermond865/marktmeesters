@@ -34,7 +34,7 @@
 
     <div class="indeling">
       <section class="transactiekaart">
-        <div class="keuze twee" id="modusKnoppen">
+        <div class="keuze twee" id="modusKnoppen" data-functie="beloningen">
           <button type="button" class="keuzeknop actief" data-modus="handel">Handel</button>
           <button type="button" class="keuzeknop" data-modus="bonus">Beloning / boete</button>
         </div>
@@ -54,9 +54,9 @@
             <small class="uitleg-klein" id="aandeelUitleg"></small>
           </label>
 
-          <div class="keuze drie hoeveel">
-            <button type="button" class="keuzeknop actief" data-invoer="aantal">Per aantal</button>
-            <button type="button" class="keuzeknop" data-invoer="bedrag">Per bedrag (€)</button>
+          <div class="keuze drie hoeveel" id="hoeveel">
+            <button type="button" class="keuzeknop actief" data-invoer="aantal" data-functie="delen">Per aantal</button>
+            <button type="button" class="keuzeknop" data-invoer="bedrag" data-functie="delen">Per bedrag (€)</button>
             <button type="button" class="keuzeknop" id="maxKnop">Max</button>
           </div>
 

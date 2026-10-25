@@ -46,6 +46,7 @@ const standaardInstellingen = {
   minKoers: 10,
   maxKoers: 100,
   regels: standaardRegels(),
+  functies: standaardFuncties(),
   thema: "roze", // zie de kleurthema's hieronder
   nieuws: null // null = de standaardberichten (zie standaardNieuws)
 };
@@ -91,6 +92,47 @@ function standaardRegels() {
     terugTrek: 60         // 0–100 — hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat
   };
 }
+
+// Functies die je aan en uit kunt zetten. De standaard is afgestemd op kinderen van 11 tot 14:
+// de lastigste onderdelen (lenen, stukjes van aandelen, centen) staan uit.
+const functieNamen = {
+  lenen: "Lenen bij de bank (met rente)",
+  delen: "Stukjes van een aandeel en kopen per bedrag",
+  centen: "Bedragen met centen",
+  dividend: "Dividend",
+  tips: "Geheime tips",
+  krachHausse: "Beurskrach en hausse",
+  beloningen: "Beloningen en boetes bij de posten",
+  voorraad: "Beperkte voorraad per aandeel",
+  slotfase: "Dubbel zoveel nieuws in de laatste 5 minuten"
+};
+
+function standaardFuncties() {
+  return {
+    lenen: false,
+    delen: false,
+    centen: false,
+    dividend: true,
+    tips: true,
+    krachHausse: true,
+    beloningen: true,
+    voorraad: true,
+    slotfase: true
+  };
+}
+
+// De regels zoals ze echt gelden: een functie die uit staat, zet de bijbehorende regel op "uit"
+function geldendeRegels() {
+  const r = { ...instellingen.regels };
+  const f = instellingen.functies;
+  if (!f.lenen) { r.maxLening = 0; r.renteProcent = 0; }
+  if (!f.delen) r.kleinsteDeel = 1;
+  if (!f.dividend) r.dividendProcent = 0;
+  return r;
+}
+
+// Geld afronden: op centen, of op hele euro's als centen uit staan
+const rondBedrag = (x) => (instellingen.functies.centen ? rondGeld(x) : Math.round(x));
 
 const TOEGESTANE_DELEN = [1, 0.5, 0.25, 0.1, 0.01];
 
@@ -229,6 +271,12 @@ function controleerInstellingen(inst) {
     const w = Number(regels[sleutel]);
     if (!Number.isFinite(w) || w < laag || w > hoog) return `${naam} moet tussen ${laag} en ${hoog} liggen.`;
   }
+  if (inst.functies !== undefined && inst.functies !== null) {
+    if (typeof inst.functies !== "object" || Array.isArray(inst.functies)) return "De functies zijn ongeldig.";
+    for (const [k, w] of Object.entries(inst.functies)) {
+      if (Object.hasOwn(functieNamen, k) && typeof w !== "boolean") return `${functieNamen[k]}: kies aan of uit.`;
+    }
+  }
   if (!TOEGESTANE_DELEN.includes(Number(regels.kleinsteDeel))) {
     return `Het kleinste deel van een aandeel moet ${TOEGESTANE_DELEN.join(", ")} zijn.`;
   }
@@ -250,6 +298,12 @@ function normaliseer(inst) {
     plaatsnaam: String(inst.plaatsnaam ?? "Nieuwe Vaart").trim() || "Nieuwe Vaart",
     regels: Object.fromEntries(
       Object.keys(regelGrenzen).map((k) => [k, Number({ ...standaardRegels(), ...(inst.regels || {}) }[k])])
+    ),
+    functies: Object.fromEntries(
+      Object.keys(functieNamen).map((k) => {
+        const w = inst.functies && inst.functies[k];
+        return [k, typeof w === "boolean" ? w : standaardFuncties()[k]];
+      })
     ),
     nieuws: (Array.isArray(inst.nieuws) ? inst.nieuws : standaardNieuws).map((n) => ({
       titel: String(n.titel).trim(),
@@ -303,7 +357,7 @@ function gemiddeldePrijs(groep, aandeel) {
 // Aandelen weghalen bij een groep en de winst/het verlies daarop teruggeven
 function verkoopUitBezit(groep, aandeel, aantal, koers) {
   const gemiddeld = gemiddeldePrijs(groep, aandeel);
-  const resultaat = rondGeld((koers - gemiddeld) * aantal);
+  const resultaat = rondBedrag((koers - gemiddeld) * aantal);
   groep.shares[aandeel] = rondAantal(groep.shares[aandeel] - aantal);
   groep.cost[aandeel] = groep.shares[aandeel] > 0 ? (groep.cost[aandeel] || 0) - gemiddeld * aantal : 0;
   if (groep.shares[aandeel] <= 0) groep.shares[aandeel] = 0;
@@ -588,8 +642,10 @@ let tips = [];
 
 // Regels en voorraad die alle schermen moeten kennen
 function werkRegelsBij() {
-  state.rules = { ...instellingen.regels };
-  state.supply = Object.fromEntries(instellingen.posten.map((p) => [p.naam, p.voorraad]));
+  state.rules = geldendeRegels();
+  state.functies = { ...instellingen.functies };
+  // Voorraad uit = onbeperkt (0)
+  state.supply = Object.fromEntries(instellingen.posten.map((p) => [p.naam, instellingen.functies.voorraad ? p.voorraad : 0]));
   state.thema = instellingen.thema;
   state.plaatsnaam = instellingen.plaatsnaam;
   state.startkapitaal = instellingen.startkapitaal;
@@ -638,11 +694,11 @@ function boek(groep, actie, velden) {
 }
 
 function betaalDividend() {
-  const procent = instellingen.regels.dividendProcent;
+  const procent = state.rules.dividendProcent;
   if (!procent) return false;
   let iemand = false;
   state.groups.forEach((g) => {
-    const bedrag = rondGeld(state.posts.reduce(
+    const bedrag = rondBedrag(state.posts.reduce(
       (som, a) => som + (g.shares[a] || 0) * state.prices[a] * procent / 100, 0));
     if (bedrag > 0) {
       g.cash = rondGeld(g.cash + bedrag);
@@ -659,7 +715,7 @@ function betaalDividend() {
 }
 
 function rekenRente() {
-  const procent = instellingen.regels.renteProcent;
+  const procent = state.rules.renteProcent;
   if (!procent) return false;
   let iemand = false;
   state.groups.forEach((g) => {
@@ -692,7 +748,7 @@ function willekeurigNieuws() {
 
 // In de slotfase (laatste 5 minuten) komt automatisch nieuws twee keer zo vaak
 function inSlotfase(nu) {
-  return state.game.status === "loopt" && state.game.eind - nu <= 300000;
+  return instellingen.functies.slotfase && state.game.status === "loopt" && state.game.eind - nu <= 300000;
 }
 
 function planAutoNieuws(nu) {
@@ -835,6 +891,7 @@ function spelerWeergave(groepId) {
     thema: state.thema,
     plaatsnaam: state.plaatsnaam,
     rules: state.rules,
+    functies: state.functies,
     serverNow: Date.now(),
     tips: groep
       ? tips.filter((t) => t.groupId === groep.id).slice(0, 5).map((t) => ({
@@ -1200,6 +1257,7 @@ const server = http.createServer(async (req, res) => {
 
     // Voorraad van een post aanpassen tijdens het spel (0 = onbeperkt)
     if (req.method === "POST" && url === "/api/voorraad") {
+      if (!instellingen.functies.voorraad) return json(res, 400, { error: "Beperkte voorraad staat uit in de spelinstellingen." });
       const body = await leesBody(req);
       const aandeel = String(body.stock || "");
       const post = instellingen.posten.find((p) => p.naam === aandeel);
@@ -1277,6 +1335,7 @@ const server = http.createServer(async (req, res) => {
         })),
         limieten: { maxGroepen: MAX_GROEPEN, maxPosten: MAX_POSTEN, regels: regelGrenzen },
         standaardNieuws,
+        standaardFuncties: standaardFuncties(),
         themas: Object.fromEntries(Object.entries(themas).map(([k, t]) => [k, { naam: t.naam, accent: t.accent, accent2: t.accent2, bg: t.bg, top: t.top, card: t.card }]))
       });
     }
@@ -1322,6 +1381,7 @@ const server = http.createServer(async (req, res) => {
     // Beurskrach of hausse: alle koersen tegelijk flink omlaag of omhoog
     if (req.method === "POST" && url === "/api/news/markt") {
       const body = await leesBody(req);
+      if (!instellingen.functies.krachHausse) return json(res, 400, { error: "Krach en hausse staan uit in de spelinstellingen." });
       const krach = body.type === "krach";
       if (!krach && body.type !== "hausse") return json(res, 400, { error: "Kies krach of hausse." });
 
@@ -1381,6 +1441,7 @@ const server = http.createServer(async (req, res) => {
 
     // Geheime tip voor één groep (alleen te zien op de ledenpagina van die groep)
     if (req.method === "POST" && url === "/api/tip") {
+      if (!instellingen.functies.tips) return json(res, 400, { error: "Geheime tips staan uit in de spelinstellingen." });
       const body = await leesBody(req);
       const groep = state.groups.find((g) => g.id === Number(body.groep));
       if (!groep) return json(res, 400, { error: "Kies een groep." });
@@ -1456,6 +1517,10 @@ const server = http.createServer(async (req, res) => {
     // Beloning of boete voor een opdracht (door een post of de beursleiding)
     if (req.method === "POST" && url === "/api/bonus") {
       if (!handelOpen()) return json(res, 400, { error: geslotenMelding() });
+      // De beursleiding kan altijd belonen of beboeten; de posten alleen als de functie aan staat
+      if (!instellingen.functies.beloningen && rolVan(req) !== "beurs") {
+        return json(res, 400, { error: "Beloningen en boetes staan uit in de spelinstellingen." });
+      }
       const body = await leesBody(req);
       const groep = state.groups.find((g) => g.id === Number(body.group));
       const bedrag = Math.round(Number(body.amount));
@@ -1485,7 +1550,7 @@ const server = http.createServer(async (req, res) => {
       const groep = state.groups.find((g) => g.id === Number(body.group));
       const bedrag = Math.round(Number(body.amount));
       const station = state.posts.includes(body.station) ? body.station : "";
-      const max = instellingen.regels.maxLening;
+      const max = state.rules.maxLening;
 
       if (!groep || !(bedrag >= 1)) return json(res, 400, { error: "Kies een groep en een bedrag." });
       groep.loan = groep.loan || 0;
@@ -1553,7 +1618,7 @@ const server = http.createServer(async (req, res) => {
       const groep = state.groups.find((g) => g.id === Number(transactie.group));
       const aandeel = String(transactie.stock || "");
       const aantal = rondAantal(Number(transactie.qty));
-      const deel = instellingen.regels.kleinsteDeel;
+      const deel = state.rules.kleinsteDeel;
       const actie = String(transactie.action || "");
       const station = state.posts.includes(transactie.station) ? transactie.station : "";
 
@@ -1561,7 +1626,9 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { error: "Vul een geldige groep, aandeel en aantal in." });
       }
       // Alleen in stappen van het kleinste deel (bijv. 0,1 aandeel)
-      if (aantal < deel - 1e-9 || Math.abs(aantal / deel - Math.round(aantal / deel)) > 1e-6) {
+      // (Uitzondering: alles verkopen wat je hebt, ook als dat een stukje is van toen delen nog aan stond)
+      const allesVerkopen = actie === "sell" && Math.abs(aantal - (groep.shares[aandeel] || 0)) < 1e-9;
+      if (!allesVerkopen && (aantal < deel - 1e-9 || Math.abs(aantal / deel - Math.round(aantal / deel)) > 1e-6)) {
         const tekst = String(deel).replace(".", ",");
         return json(res, 400, { error: deel === 1 ? "Je kunt alleen hele aandelen kopen en verkopen." : `Je kunt aandelen alleen in stappen van ${tekst} kopen en verkopen.` });
       }
@@ -1576,7 +1643,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const koers = state.prices[aandeel];
-      const totaal = rondGeld(koers * aantal);
+      const totaal = rondBedrag(koers * aantal);
       groep.cost = groep.cost || {};
       let resultaat = null;
       let gemiddeld = null;

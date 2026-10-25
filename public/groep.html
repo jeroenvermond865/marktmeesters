@@ -169,10 +169,10 @@
       <p class="hint">📺 De koersen van de andere aandelen en het nieuws zie je op het grote scherm bij de middenpost.</p>
 
       <div class="kaart saldo">
-        <div class="label">KASGELD</div>
+        <div class="label">GELD</div>
         <div class="bedrag" id="kas">€ –</div>
         <div class="klein-rij">
-          <div class="vak"><span>Totale waarde</span><b id="totaal">–</b></div>
+          <div class="vak"><span>Score (geld + aandelen)</span><b id="totaal">–</b></div>
           <div class="vak"><span>Winst / verlies</span><b id="resultaat">–</b></div>
           <div class="vak" id="leningVak" hidden><span>Lening bij de bank</span><b id="lening">–</b></div>
           <div class="vak" id="extraVak" hidden><span>Dividend + beloningen</span><b id="extra">–</b></div>
@@ -204,7 +204,8 @@
     }
 
     function euro(bedrag) {
-      const b = Math.round(Number(bedrag) * 100) / 100;
+      // Centen uit (spelinstellingen → Functies): hele euro's
+      const b = laatsteData && laatsteData.functies && laatsteData.functies.centen === false ? Math.round(Number(bedrag)) : Math.round(Number(bedrag) * 100) / 100;
       return "€ " + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
     }
     const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });

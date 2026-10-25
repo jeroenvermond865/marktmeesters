@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Beursleiding · Marktmeesters</title>
   <style>
+    [data-functie][hidden] { display: none !important; }
     :root {
       --bg: #071426;
       --card: #10253d;
@@ -438,7 +439,7 @@
           <div id="standZichtbaar">
             <table>
               <thead>
-                <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num">Lening</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
+                <tr><th>#</th><th>Groep</th><th class="num">Kas</th><th class="num" data-functie="lenen">Lening</th><th class="num">+/−</th><th class="num">Totaal</th></tr>
               </thead>
               <tbody id="ranking"></tbody>
             </table>
@@ -504,7 +505,8 @@
     }
 
     function euro(bedrag) {
-      const b = Math.round(Number(bedrag) * 100) / 100;
+      // Centen uit (spelinstellingen → Functies): hele euro's
+      const b = state && state.functies && state.functies.centen === false ? Math.round(Number(bedrag)) : Math.round(Number(bedrag) * 100) / 100;
       return "€\u00a0" + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
     }
     const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });
@@ -756,7 +758,7 @@
           <td>${i + 1}</td>
           <td>${esc(g.name)}</td>
           <td class="num">${euro(g.cash)}</td>
-          <td class="num">${g.loan ? `<span class="down">${euro(g.loan)}</span>` : "–"}</td>
+          <td class="num" data-functie="lenen">${g.loan ? `<span class="down">${euro(g.loan)}</span>` : "–"}</td>
           <td class="num">${resultaatHtml(g.resultaat)}</td>
           <td class="num">${euro(g.totaal)}</td>
         </tr>`).join("");
@@ -906,6 +908,11 @@
       if (t && link && link.getAttribute("href") !== href) link.setAttribute("href", href);
     }
 
+    // Onderdelen van een functie die uit staat (spelinstellingen → Functies) verbergen
+    function zetFuncties(f) {
+      document.querySelectorAll("[data-functie]").forEach((el) => { el.hidden = !!f && f[el.dataset.functie] === false; });
+    }
+
     function render(nieuw) {
       state = nieuw;
       zetThema(state.thema);
@@ -922,6 +929,7 @@
       renderNieuws();
       renderTransacties();
       renderRanking();
+      zetFuncties(state.functies);
       renderBezit();
       // Tussenstand verbergen of tonen (vanaf de bediening)
       const toonStand = !(state.scherm && state.scherm.tussenstand === false);

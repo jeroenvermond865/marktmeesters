@@ -79,7 +79,8 @@
 
   // € 12 of € 12,50 (centen alleen als het nodig is)
   function euro(bedrag) {
-    const b = Math.round(Number(bedrag) * 100) / 100;
+    // Centen uit (spelinstellingen → Functies): hele euro's
+    const b = state && state.functies && state.functies.centen === false ? Math.round(Number(bedrag)) : Math.round(Number(bedrag) * 100) / 100;
     return "€ " + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
   }
 
@@ -429,6 +430,17 @@
     if (eersteKeer) $("#bonusBedrag").value = bedragen[1];
   }
 
+  // Onderdelen van een functie die uit staat (spelinstellingen → Functies) verbergen
+  function zetFuncties() {
+    const f = state.functies || {};
+    document.querySelectorAll("[data-functie]").forEach((el) => { el.hidden = f[el.dataset.functie] === false; });
+    // Geen beloningen bij de post: altijd handelen
+    if (f.beloningen === false && modus !== "handel") $('[data-modus="handel"]').click();
+    // Geen stukjes: alleen per aantal (de knop Max blijft over, dan over de volle breedte)
+    if (f.delen === false && invoer !== "aantal") $('[data-invoer="aantal"]').click();
+    $("#hoeveel").classList.toggle("drie", f.delen !== false);
+  }
+
   function verwerkState(nieuw) {
     const vorigeNieuws = state && state.news[0] && state.news[0].at;
     state = nieuw;
@@ -442,6 +454,7 @@
     if (!state.groups.some((g) => g.id === gekozenGroep) && state.groups.length) {
       gekozenGroep = state.groups[0].id;
     }
+    zetFuncties();
     zetDeelKnoppen();
     zetSnelknoppen();
     tekenGroepKnoppen();

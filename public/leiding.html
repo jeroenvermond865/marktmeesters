@@ -7,6 +7,7 @@
   <title>Bediening · Marktmeesters</title>
   <link rel="stylesheet" href="/post.css">
   <style>
+    [data-functie][hidden] { display: none !important; }
     main { max-width: 620px; padding-bottom: 60px; }
 
     .kaart {
@@ -143,7 +144,7 @@
         seconden
       </div>
       <p class="status" id="autoStatus"></p>
-      <div class="tweeknop">
+      <div class="tweeknop" data-functie="krachHausse">
         <button type="button" class="krach" id="krachKnop">📉 Beurskrach</button>
         <button type="button" class="hausse" id="hausseKnop">📈 Hausse</button>
       </div>
@@ -164,7 +165,7 @@
     </section>
 
     <!-- Geheime tip -->
-    <section class="kaart">
+    <section class="kaart" data-functie="tips">
       <h2>🤫 Geheime tip</h2>
       <p class="status">Alleen te zien op de ledenpagina van die ene groep.</p>
       <form id="tipForm" style="display:grid;gap:10px">
@@ -189,7 +190,7 @@
     </section>
 
     <!-- Bank -->
-    <section class="kaart">
+    <section class="kaart" data-functie="lenen">
       <h2>🏦 Bank</h2>
       <select id="bankGroep" aria-label="Groep"></select>
       <div class="tweeknop">
@@ -205,7 +206,7 @@
     </section>
 
     <!-- Voorraad -->
-    <section class="kaart">
+    <section class="kaart" data-functie="voorraad">
       <h2>📦 Voorraad per post</h2>
       <p class="status">Geef tijdens het spel meer of minder aandelen vrij. Het grote scherm meldt het meteen.</p>
       <div class="voorraad" id="voorraad"></div>
@@ -242,7 +243,8 @@
       })[c]);
     }
     const euro = (bedrag) => {
-      const b = Math.round(Number(bedrag) * 100) / 100;
+      // Centen uit (spelinstellingen → Functies): hele euro's
+      const b = state && state.functies && state.functies.centen === false ? Math.round(Number(bedrag)) : Math.round(Number(bedrag) * 100) / 100;
       return "€ " + b.toLocaleString("nl-NL", { minimumFractionDigits: Number.isInteger(b) ? 0 : 2, maximumFractionDigits: 2 });
     };
     const aantalTekst = (x) => Number(x).toLocaleString("nl-NL", { maximumFractionDigits: 4 });
@@ -306,7 +308,7 @@
       const a = state.auto || {};
       if (a.aan && a.volgende) {
         const over = handelOpen() ? a.volgende - nuServer() : a.volgende - (state.serverNow || nuServer());
-        const slot = g.status === "loopt" && rest <= 300000;
+        const slot = g.status === "loopt" && rest <= 300000 && !(state.functies && state.functies.slotfase === false);
         $("#autoStatus").innerHTML = (handelOpen() ? `Volgend nieuws over ${mmss(over)}` : "Wacht tot de beurs open is") +
           (slot ? ` · <span class="slotfase">SLOTFASE: dubbel tempo</span>` : "");
         $("#klokInfo").textContent = handelOpen() ? `📰 nieuws over ${mmss(over)}` : "";
@@ -567,9 +569,15 @@
 
     // --- Alles tekenen ---
 
+    // Onderdelen van een functie die uit staat (spelinstellingen → Functies) verbergen
+    function zetFuncties(f) {
+      document.querySelectorAll("[data-functie]").forEach((el) => { el.hidden = !!f && f[el.dataset.functie] === false; });
+    }
+
     function render(nieuw) {
       state = nieuw;
       zetThema(state.thema);
+      zetFuncties(state.functies);
       if (state.serverNow) klokVerschil = state.serverNow - Date.now();
       aandelen = state.posts;
 

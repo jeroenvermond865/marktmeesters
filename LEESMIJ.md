@@ -76,6 +76,12 @@ Via **⚙ Spelinstellingen** (alleen beursleiding) pas je zonder code aan:
 - **Startgeld** per groep.
 - **Naam van de beurs**: de plaatsnaam (standaard Nieuwe Vaart) in de titel en het nieuws.
 - **Kleuren**: kies een kleurthema voor alle schermen (standaard roze, ook geel).
+- **Functies**: zet onderdelen van het spel aan of uit. De standaard is afgestemd op kinderen van 11 tot 14 jaar:
+  - standaard **uit**: lenen bij de bank (en rente), stukjes van een aandeel en kopen per bedrag, en bedragen met centen;
+  - standaard **aan**: dividend, geheime tips, beurskrach en hausse, beloningen en boetes bij de posten, beperkte voorraad en de slotfase.
+
+  Wat uit staat, verdwijnt van alle schermen en de server weigert het. Met *Standaard voor 11–14 jaar terugzetten* zet je alles terug.
+  Beloningen en boetes uit geldt alleen voor de posten: de beursleiding kan altijd belonen of beboeten.
 - **Spelregels**: heftigheid van nieuws, terugtrekkracht (aandelen blijven niet hangen), speelduur, dividend, koersreactie, maximaal lenen en rente.
 - **Nieuwsberichten**: aanpassen, verwijderen, zelf schrijven of laten verzinnen met 🎲 *Verzin een bericht*.
 
@@ -93,7 +99,7 @@ Hernoem je een post, dan verandert ook de link van die post (`post.html?post=Naa
 
 Via de bediening kun je ook per post de **voorraad** aanpassen (−5, −1, +1, +5 of onbeperkt); het grote scherm meldt dat meteen.
 
-Lenen en aflossen bij de **bank** gaat alleen via de bediening. Over een lening wordt rente berekend.
+Lenen en aflossen bij de **bank** gaat alleen via de bediening. Over een lening wordt rente berekend. (Alleen als *Lenen bij de bank* aan staat bij Functies.)
 
 Automatisch nieuws en geplande tips lopen op de server, dus ook als je telefoon op slot gaat.
 Het eindscherm verschijnt vanzelf als de beurs sluit; je kunt het ook vanaf de bediening tonen of verbergen.

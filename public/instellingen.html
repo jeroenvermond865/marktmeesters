@@ -51,6 +51,11 @@
     .twee { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .regels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
     .regels label span { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
+    .regels label[hidden] { display: none; }
+    .functies { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .functies label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--rand); border-radius: 10px; background: var(--veld); cursor: pointer; }
+    .functies input { width: 22px; height: 22px; flex: none; margin: 1px 0 0; accent-color: var(--cyan); }
+    .functies span { display: block; color: var(--muted); font-weight: 400; font-size: 13px; }
 
     .knoppen {
       position: sticky;
@@ -188,17 +193,34 @@
     </section>
 
     <section class="kaart">
+      <h2>Functies</h2>
+      <p class="opmerking">Zet onderdelen van het spel aan of uit. De standaard is afgestemd op kinderen van 11 tot 14 jaar: de lastigste onderdelen staan dan uit. Wat uit staat, verdwijnt van alle schermen.</p>
+      <div class="functies">
+        <label><input type="checkbox" data-functie="lenen"><div>Lenen bij de bank<span>Groepen kunnen geld lenen bij de bank en betalen daar rente over.</span></div></label>
+        <label><input type="checkbox" data-functie="delen"><div>Stukjes van een aandeel<span>Ook een deel van een aandeel kopen, en kopen "per bedrag". Uit = alleen hele aandelen.</span></div></label>
+        <label><input type="checkbox" data-functie="centen"><div>Bedragen met centen<span>Uit = alle bedragen in hele euro's (dividend wordt afgerond).</span></div></label>
+        <label><input type="checkbox" data-functie="dividend"><div>Dividend<span>Geld voor groepen die aandelen vasthouden.</span></div></label>
+        <label><input type="checkbox" data-functie="tips"><div>Geheime tips<span>De leiding stuurt een groep een tip op hun telefoon.</span></div></label>
+        <label><input type="checkbox" data-functie="krachHausse"><div>Beurskrach en hausse<span>Knoppen op de bediening: alle koersen tegelijk omlaag of omhoog.</span></div></label>
+        <label><input type="checkbox" data-functie="beloningen"><div>Beloningen en boetes bij de posten<span>De posten kunnen geld geven of afpakken. De leiding kan het altijd.</span></div></label>
+        <label><input type="checkbox" data-functie="voorraad"><div>Beperkte voorraad<span>Per aandeel een maximum dat in omloop is. Uit = onbeperkt.</span></div></label>
+        <label><input type="checkbox" data-functie="slotfase"><div>Slotfase<span>In de laatste 5 minuten komt het automatische nieuws twee keer zo vaak.</span></div></label>
+      </div>
+      <button type="button" class="toevoegen" id="functiesStandaard">Standaard voor 11–14 jaar terugzetten</button>
+    </section>
+
+    <section class="kaart">
       <h2>Spelregels</h2>
       <div class="regels">
         <label>Speelduur (minuten)
           <span>Voorstel bij het starten van de klok</span>
           <input type="number" data-regel="speelduur" step="1" inputmode="numeric">
         </label>
-        <label>Dividend (%)
+        <label data-hoort-bij="dividend">Dividend (%)
           <span>Van de koers, per aandeel in bezit. 0 = uit</span>
           <input type="number" data-regel="dividendProcent" step="0.5" inputmode="decimal">
         </label>
-        <label>Dividend elke (minuten)
+        <label data-hoort-bij="dividend">Dividend elke (minuten)
           <span>Hoe vaak het dividend wordt uitbetaald</span>
           <input type="number" data-regel="dividendInterval" step="1" inputmode="numeric">
         </label>
@@ -210,7 +232,7 @@
           <span>Hoe sterk nieuws een aandeel terugtrekt als het lang hoog of laag staat. 0 = puur toeval</span>
           <input type="number" data-regel="terugTrek" step="5" min="0" max="100" inputmode="numeric">
         </label>
-        <label>Kleinste deel van een aandeel
+        <label data-hoort-bij="delen">Kleinste deel van een aandeel
           <span>Hoe klein een stukje aandeel mag zijn</span>
           <select data-regel="kleinsteDeel">
             <option value="1">1 (alleen hele aandelen)</option>
@@ -224,15 +246,15 @@
           <span>Per gekocht/verkocht aandeel. 0 = uit</span>
           <input type="number" data-regel="koersImpact" step="0.5" inputmode="decimal">
         </label>
-        <label>Maximaal lenen (€)
+        <label data-hoort-bij="lenen">Maximaal lenen (€)
           <span>Per groep bij de bank. 0 = lenen uit</span>
           <input type="number" data-regel="maxLening" step="1" inputmode="numeric">
         </label>
-        <label>Rente (%)
+        <label data-hoort-bij="lenen">Rente (%)
           <span>Op de openstaande lening. 0 = geen rente</span>
           <input type="number" data-regel="renteProcent" step="0.5" inputmode="decimal">
         </label>
-        <label>Rente elke (minuten)
+        <label data-hoort-bij="lenen">Rente elke (minuten)
           <span>Hoe vaak de rente wordt bijgeteld</span>
           <input type="number" data-regel="renteInterval" step="1" inputmode="numeric">
         </label>
@@ -310,6 +332,7 @@
     let opgeslagen = null; // laatst geladen gegevens van de server
     let limieten = { maxGroepen: 20, maxPosten: 12 };
     let standaardBerichten = [];
+    let standaardFuncties = {};
     let themas = {};
     let gekozenThema = "roze";
 
@@ -621,6 +644,7 @@
         plaatsnaam: $("#plaatsnaam").value.trim() || "Nieuwe Vaart",
         thema: gekozenThema,
         regels,
+        functies: leesFuncties(),
         nieuws: berichten.map((b) => ({
           titel: b.titel.trim(),
           tekst: b.tekst.trim(),
@@ -629,7 +653,33 @@
       };
     }
 
+    function leesFuncties() {
+      const f = {};
+      document.querySelectorAll("[data-functie]").forEach((v) => { f[v.dataset.functie] = v.checked; });
+      return f;
+    }
+
+    // Spelregels van een functie die uit staat, hoef je niet te zien
+    function toonRegelsBijFuncties() {
+      const f = leesFuncties();
+      document.querySelectorAll("[data-hoort-bij]").forEach((l) => { l.hidden = f[l.dataset.hoortBij] === false; });
+    }
+
+    function zetFuncties(f) {
+      document.querySelectorAll("[data-functie]").forEach((v) => {
+        if (f && typeof f[v.dataset.functie] === "boolean") v.checked = f[v.dataset.functie];
+      });
+      toonRegelsBijFuncties();
+    }
+
+    document.querySelectorAll("[data-functie]").forEach((v) => v.addEventListener("change", toonRegelsBijFuncties));
+    $("#functiesStandaard").addEventListener("click", () => {
+      zetFuncties(standaardFuncties);
+      melden("Functies teruggezet op de standaard voor 11–14 jaar. Klik op Opslaan.", true);
+    });
+
     function vulFormulier(inst) {
+      zetFuncties(inst.functies);
       if (inst.plaatsnaam !== undefined) $("#plaatsnaam").value = inst.plaatsnaam;
       if (inst.thema && themas[inst.thema]) {
         gekozenThema = inst.thema;
@@ -657,6 +707,7 @@
       opgeslagen = data;
       limieten = data.limieten;
       standaardBerichten = data.standaardNieuws;
+      standaardFuncties = data.standaardFuncties || {};
       themas = data.themas || {};
 
       groepRijen = data.groepen.map((g) => ({ ...g }));
@@ -760,6 +811,7 @@
         thema: data.thema,
         plaatsnaam: data.plaatsnaam,
         regels: data.regels,
+        functies: data.functies,
         nieuws: data.nieuws
       });
     });
@@ -801,6 +853,7 @@
           minKoers: data.minKoers ?? $("#minKoers").value,
           maxKoers: data.maxKoers ?? $("#maxKoers").value,
           regels: data.regels,
+          functies: data.functies,
           thema: data.thema,
           plaatsnaam: data.plaatsnaam,
           nieuws: data.nieuws
